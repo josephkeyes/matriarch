@@ -18,9 +18,14 @@ const CHANNELS = {
     CREATE: "collections:create",
     UPDATE: "collections:update",
     DELETE: "collections:delete"
+  },
+  NOTES: {
+    CREATE: "notes:create",
+    READ: "notes:read",
+    UPDATE: "notes:update",
+    DELETE: "notes:delete"
   }
   // Future channels:
-  // NOTES: { CREATE: 'notes:create', ... }
   // TASKS: { CREATE: 'tasks:create', ... }
 };
 const matriarch = {
@@ -41,6 +46,12 @@ const matriarch = {
     create: (name) => electron.ipcRenderer.invoke(CHANNELS.COLLECTIONS.CREATE, name),
     update: (id, data) => electron.ipcRenderer.invoke(CHANNELS.COLLECTIONS.UPDATE, id, data),
     delete: (id) => electron.ipcRenderer.invoke(CHANNELS.COLLECTIONS.DELETE, id)
+  },
+  notes: {
+    create: (data) => electron.ipcRenderer.invoke(CHANNELS.NOTES.CREATE, data),
+    read: (id) => electron.ipcRenderer.invoke(CHANNELS.NOTES.READ, id),
+    update: (id, data) => electron.ipcRenderer.invoke(CHANNELS.NOTES.UPDATE, id, data),
+    delete: (id) => electron.ipcRenderer.invoke(CHANNELS.NOTES.DELETE, id)
   }
 };
 electron.contextBridge.exposeInMainWorld("matriarch", matriarch);

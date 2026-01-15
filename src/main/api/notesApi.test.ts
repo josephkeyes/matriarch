@@ -88,4 +88,24 @@ describe('Notes API', () => {
         const retrieved = await getNote(created.id)
         expect(retrieved).toBeNull()
     })
+
+    it('should create a note and place it in a collection', async () => {
+        const client = DatabaseClient.getInstance().getClient()
+        // Create a collection first
+        const collection = await client.collection.create({
+            data: { name: 'Test Collection' }
+        })
+
+        const note = await createNote({
+            title: 'Placed Note',
+            collectionId: collection.id
+        })
+
+        expect(note.id).toBeDefined()
+
+        // Verify placement
+        const savedNote = await getNote(note.id)
+        expect(savedNote?.placements).toHaveLength(1)
+        expect(savedNote?.placements[0].collectionId).toBe(collection.id)
+    })
 })

@@ -34,6 +34,12 @@ const matriarch: MatriarchApi = {
         update: (id: string, data: { name?: string }) => ipcRenderer.invoke(CHANNELS.COLLECTIONS.UPDATE, id, data),
         delete: (id: string) => ipcRenderer.invoke(CHANNELS.COLLECTIONS.DELETE, id),
     },
+    notes: {
+        create: (data) => ipcRenderer.invoke(CHANNELS.NOTES.CREATE, data),
+        read: (id) => ipcRenderer.invoke(CHANNELS.NOTES.READ, id),
+        update: (id, data) => ipcRenderer.invoke(CHANNELS.NOTES.UPDATE, id, data),
+        delete: (id) => ipcRenderer.invoke(CHANNELS.NOTES.DELETE, id),
+    },
 }
 
 // Expose the typed API to the renderer

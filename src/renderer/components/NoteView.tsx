@@ -1,0 +1,161 @@
+
+import { useEffect, useState } from 'react';
+import { LexicalComposer } from '@lexical/react/LexicalComposer';
+import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
+import { ContentEditable } from '@lexical/react/LexicalContentEditable';
+import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
+import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
+import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
+import { $convertFromMarkdownString, TRANSFORMERS } from '@lexical/markdown';
+import { Note } from '../../shared/api/contracts';
+import { HeadingNode, QuoteNode } from '@lexical/rich-text';
+import { CodeNode } from '@lexical/code';
+import { ListNode, ListItemNode } from '@lexical/list';
+import { LinkNode } from '@lexical/link';
+
+// Theme configuration
+const theme = {
+    heading: {
+        h1: 'text-3xl font-bold mb-4 text-slate-800 dark:text-slate-100',
+        h2: 'text-2xl font-bold mb-3 text-slate-800 dark:text-slate-100',
+        h3: 'text-xl font-bold mb-2 text-slate-800 dark:text-slate-100',
+    },
+    paragraph: 'mb-4 text-slate-700 dark:text-slate-300',
+    text: {
+        bold: 'font-bold',
+        italic: 'italic',
+        underline: 'underline',
+        strikethrough: 'line-through',
+    },
+    quote: 'border-l-4 border-slate-300 dark:border-slate-600 pl-4 italic text-slate-600 dark:text-slate-400',
+    list: {
+        ul: 'list-disc list-inside mb-4 text-slate-700 dark:text-slate-300',
+        ol: 'list-decimal list-inside mb-4 text-slate-700 dark:text-slate-300',
+    },
+    code: 'bg-slate-100 dark:bg-slate-800 rounded px-1 py-0.5 font-mono text-sm',
+    link: 'text-primary hover:underline',
+};
+
+// Plugin to load markdown content
+function MarkdownLoaderPlugin({ markdown }: { markdown: string }) {
+    const [editor] = useLexicalComposerContext();
+
+    useEffect(() => {
+        // We update the editor state when markdown changes
+        editor.update(() => {
+            $convertFromMarkdownString(markdown, TRANSFORMERS);
+        });
+    }, [markdown, editor]);
+
+    return null;
+}
+
+interface NoteViewProps {
+    noteId: string;
+}
+
+export function NoteView({ noteId }: NoteViewProps) {
+    const [note, setNote] = useState<Note | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        async function loadNote() {
+            if (!noteId) return;
+            setLoading(true);
+            setError(null);
+            try {
+                if (window.matriarch?.notes) {
+                    const data = await window.matriarch.notes.read(noteId);
+                    setNote(data);
+                } else {
+                    setError("API not available");
+                }
+            } catch (e) {
+                console.error("Failed to load note", e);
+                setError("Failed to load note");
+            } finally {
+                setLoading(false);
+            }
+        }
+        loadNote();
+    }, [noteId]);
+
+    const initialConfig = {
+        namespace: 'NoteView',
+        theme,
+        onError(error: any) {
+            console.error(error);
+        },
+        nodes: [
+            HeadingNode,
+            QuoteNode,
+            CodeNode,
+            ListNode,
+            ListItemNode,
+            LinkNode
+        ],
+        editable: false,
+    };
+
+    if (loading) {
+        return (
+            <div className="flex h-full items-center justify-center">
+                <span className="material-icons-round animate-spin text-slate-400 text-3xl">refresh</span>
+            </div>
+        );
+    }
+
+    if (error || !note) {
+        return (
+            <div className="flex flex-col h-full items-center justify-center text-slate-400">
+                <span className="material-icons-round text-4xl mb-2">error_outline</span>
+                <p>{error || "Note not found"}</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex flex-col h-full bg-white dark:bg-background-dark animate-fade-in">
+            {/* Note Header */}
+            <div className="px-8 py-5 border-b border-slate-100 dark:border-border-dark flex items-center justify-between sticky top-0 bg-white/95 dark:bg-background-dark/95 backdrop-blur-md z-10">
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-text-main-dark tracking-tight">
+                        {note.title}
+                    </h1>
+                    <p className="text-xs text-slate-400 dark:text-text-secondary-dark mt-1 flex items-center gap-2">
+                        <span className="material-icons-round text-[14px]">calendar_today</span>
+                        <span>Created {new Date(note.createdAt).toLocaleDateString()}</span>
+                    </p>
+                </div>
+                {/* Actions placeholder */}
+                <div className="flex items-center space-x-2">
+                    <button className="p-2 rounded-lg text-slate-400 hover:text-primary hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                        <span className="material-icons-round">edit</span>
+                    </button>
+                    <button className="p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                        <span className="material-icons-round">more_vert</span>
+                    </button>
+                </div>
+            </div>
+
+            {/* Note Content */}
+            <div className="flex-1 overflow-y-auto px-8 py-8 custom-scrollbar">
+                <div className="max-w-4xl mx-auto">
+                    <LexicalComposer initialConfig={initialConfig}>
+                        <RichTextPlugin
+                            contentEditable={
+                                <ContentEditable
+                                    className="outline-none min-h-[calc(100vh-200px)] text-lg text-slate-700 dark:text-slate-300 leading-relaxed"
+                                />
+                            }
+                            placeholder={null}
+                            ErrorBoundary={LexicalErrorBoundary}
+                        />
+                        <MarkdownLoaderPlugin markdown={note.content || ''} />
+                    </LexicalComposer>
+                </div>
+            </div>
+        </div>
+    );
+}
