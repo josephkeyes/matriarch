@@ -342,7 +342,7 @@ function AppContent() {
         >
             {/* Main Content Area */}
             {activeView === 'note' && activeNoteId ? (
-                <NoteView noteId={activeNoteId} />
+                <NoteView noteId={activeNoteId} onNoteUpdate={loadCollections} />
             ) : (
                 <>
                     <div className="flex items-center justify-between px-8 py-4 border-b border-slate-100 dark:border-border-dark/50 sticky top-0 bg-white/95 dark:bg-background-dark/95 backdrop-blur-md z-40">
