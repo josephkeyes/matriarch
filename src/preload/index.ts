@@ -28,6 +28,10 @@ const matriarch: MatriarchApi = {
         getLogs: (agentId: string, limit?: number) =>
             ipcRenderer.invoke(CHANNELS.AGENTS.GET_LOGS, agentId, limit),
     },
+    collections: {
+        list: () => ipcRenderer.invoke(CHANNELS.COLLECTIONS.LIST),
+        create: (name: string) => ipcRenderer.invoke(CHANNELS.COLLECTIONS.CREATE, name),
+    },
 }
 
 // Expose the typed API to the renderer
