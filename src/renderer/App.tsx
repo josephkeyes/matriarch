@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { ThemeProvider, useThemeContext } from './contexts/ThemeContext'
+import { ContextMenuProvider, useContextMenu } from './contexts/ContextMenuContext'
 import {
     AppShell,
     Header,
@@ -35,19 +36,28 @@ const activityData = [30, 60, 40, 90, 70, 20, 50]
 
 function AppContent() {
     const { toggleTheme, resolvedTheme } = useThemeContext()
+    const { showContextMenu } = useContextMenu()
 
     const [collections, setCollections] = useState<any[]>([])
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
     const [newCollectionName, setNewCollectionName] = useState('')
 
     useEffect(() => {
-        // Fetch collections on mount
-        if (window.matriarch?.collections) {
-            window.matriarch.collections.list().then(setCollections).catch(console.error)
-        } else {
-            console.warn("Matriarch API not ready. Please restart the application.")
-        }
+        loadCollections()
     }, [])
+
+    const loadCollections = async () => {
+        if (window.matriarch?.collections) {
+            try {
+                const list = await window.matriarch.collections.list()
+                setCollections(list)
+            } catch (err) {
+                console.error("Failed to load collections:", err)
+            }
+        } else {
+            console.warn("Matriarch API not ready.")
+        }
+    }
 
     const handleCreateCollection = async () => {
         console.log("Attempting to create collection:", newCollectionName)
@@ -61,9 +71,7 @@ function AppContent() {
             try {
                 const result = await window.matriarch.collections.create(newCollectionName)
                 console.log("Collection created result:", result)
-                const updated = await window.matriarch.collections.list()
-                console.log("Fetched updated collections:", updated)
-                setCollections(updated)
+                await loadCollections()
                 setNewCollectionName('')
                 setIsCreateModalOpen(false)
             } catch (e) {
@@ -73,6 +81,29 @@ function AppContent() {
             console.error("window.matriarch.collections is undefined!")
             alert("Internal Error: API is not connected. Check console logs.")
         }
+    }
+
+    const handleDeleteCollection = async (id: string, name: string) => {
+        if (confirm(`Are you sure you want to delete the collection "${name}"?`)) {
+            try {
+                await window.matriarch.collections.delete(id)
+                await loadCollections()
+            } catch (e) {
+                console.error("Failed to delete collection:", e)
+                alert("Failed to delete collection")
+            }
+        }
+    }
+
+    const handleCollectionContextMenu = (e: React.MouseEvent, id: string, name: string) => {
+        showContextMenu(e, [
+            {
+                label: 'Delete Collection',
+                icon: 'delete',
+                variant: 'danger',
+                action: () => handleDeleteCollection(id, name)
+            }
+        ])
     }
 
     const openCreateModal = () => setIsCreateModalOpen(true)
@@ -109,7 +140,13 @@ function AppContent() {
                             <>
                                 <NavItem icon="layers" label="Collections" />
                                 {collections.map(c => (
-                                    <NavItem key={c.id} icon="folder" label={c.name} level={1} />
+                                    <NavItem
+                                        key={c.id}
+                                        icon="folder"
+                                        label={c.name}
+                                        level={1}
+                                        onContextMenu={(e) => handleCollectionContextMenu(e, c.id, c.name)}
+                                    />
                                 ))}
                             </>
                         )}
@@ -257,7 +294,9 @@ function AppContent() {
 function App() {
     return (
         <ThemeProvider>
-            <AppContent />
+            <ContextMenuProvider>
+                <AppContent />
+            </ContextMenuProvider>
         </ThemeProvider>
     )
 }
