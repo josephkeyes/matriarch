@@ -1,12 +1,15 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
+import { ListPlugin } from '@lexical/react/LexicalListPlugin';
+import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
+import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
-import { $convertFromMarkdownString, TRANSFORMERS } from '@lexical/markdown';
+import { $convertFromMarkdownString, $convertToMarkdownString, TRANSFORMERS } from '@lexical/markdown';
 import { Note } from '../../shared/api/contracts';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { CodeNode } from '@lexical/code';
@@ -39,13 +42,18 @@ const theme = {
 // Plugin to load markdown content
 function MarkdownLoaderPlugin({ markdown }: { markdown: string }) {
     const [editor] = useLexicalComposerContext();
+    const [isLoaded, setIsLoaded] = useState(false);
 
     useEffect(() => {
-        // We update the editor state when markdown changes
-        editor.update(() => {
-            $convertFromMarkdownString(markdown, TRANSFORMERS);
-        });
-    }, [markdown, editor]);
+        // Only load if not already loaded to prevent overwriting user edits on re-renders
+        // or if noteId changed (handled by parent unmounting/remounting)
+        if (!isLoaded && markdown) {
+            editor.update(() => {
+                $convertFromMarkdownString(markdown, TRANSFORMERS);
+            });
+            setIsLoaded(true);
+        }
+    }, [markdown, editor, isLoaded]);
 
     return null;
 }
@@ -58,6 +66,10 @@ export function NoteView({ noteId }: NoteViewProps) {
     const [note, setNote] = useState<Note | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
+
+    // Save timeout ref
+    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         async function loadNote() {
@@ -79,7 +91,38 @@ export function NoteView({ noteId }: NoteViewProps) {
             }
         }
         loadNote();
+
+        // Cleanup save timeout
+        return () => {
+            if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+        };
     }, [noteId]);
+
+    const handleSave = useCallback(async (content: string) => {
+        if (!noteId || !window.matriarch?.notes) return;
+
+        setIsSaving(true);
+        try {
+            await window.matriarch.notes.update(noteId, { content });
+        } catch (e) {
+            console.error("Failed to save note:", e);
+        } finally {
+            setIsSaving(false);
+        }
+    }, [noteId]);
+
+    const onChange = useCallback((editorState: any, editor: any) => {
+        editorState.read(() => {
+            // Convert to markdown
+            const markdown = $convertToMarkdownString(TRANSFORMERS);
+
+            // Debounce save
+            if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+            saveTimeoutRef.current = setTimeout(() => {
+                handleSave(markdown);
+            }, 1000); // Auto-save after 1 second of inactivity
+        });
+    }, [handleSave]);
 
     const initialConfig = {
         namespace: 'NoteView',
@@ -95,7 +138,7 @@ export function NoteView({ noteId }: NoteViewProps) {
             ListItemNode,
             LinkNode
         ],
-        editable: false,
+        editable: true,
     };
 
     if (loading) {
@@ -120,12 +163,13 @@ export function NoteView({ noteId }: NoteViewProps) {
             {/* Note Header */}
             <div className="px-8 py-5 border-b border-slate-100 dark:border-border-dark flex items-center justify-between sticky top-0 bg-white/95 dark:bg-background-dark/95 backdrop-blur-md z-10">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-text-main-dark tracking-tight">
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-text-main-dark tracking-tight outline-none focus:ring-2 focus:ring-primary/50 rounded px-1 -ml-1 transition-all" contentEditable suppressContentEditableWarning>
                         {note.title}
                     </h1>
                     <p className="text-xs text-slate-400 dark:text-text-secondary-dark mt-1 flex items-center gap-2">
                         <span className="material-icons-round text-[14px]">calendar_today</span>
                         <span>Created {new Date(note.createdAt).toLocaleDateString()}</span>
+                        {isSaving && <span className="text-primary italic ml-2">Saving...</span>}
                     </p>
                 </div>
                 {/* Actions placeholder */}
@@ -149,10 +193,14 @@ export function NoteView({ noteId }: NoteViewProps) {
                                     className="outline-none min-h-[calc(100vh-200px)] text-lg text-slate-700 dark:text-slate-300 leading-relaxed"
                                 />
                             }
-                            placeholder={null}
+                            placeholder={<div className="text-slate-300 absolute top-0 pointer-events-none">Start typing...</div>}
                             ErrorBoundary={LexicalErrorBoundary}
                         />
                         <MarkdownLoaderPlugin markdown={note.content || ''} />
+                        <OnChangePlugin onChange={onChange} />
+                        <HistoryPlugin />
+                        <ListPlugin />
+                        <LinkPlugin />
                     </LexicalComposer>
                 </div>
             </div>

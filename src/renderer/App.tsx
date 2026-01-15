@@ -47,6 +47,10 @@ function AppContent() {
     const [activeView, setActiveView] = useState<'dashboard' | 'note'>('dashboard')
     const [activeNoteId, setActiveNoteId] = useState<string | null>(null)
 
+    // UI Layout State
+    const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false)
+    const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false)
+
     // Rename state
     const [isRenameModalOpen, setIsRenameModalOpen] = useState(false)
     const [collectionToRename, setCollectionToRename] = useState<{ id: string, name: string } | null>(null)
@@ -199,20 +203,31 @@ function AppContent() {
                 />
             }
             sidebar={
-                <Sidebar title="MAIN NAVIGATION">
-                    <div className="px-4 mb-4">
-                        <Button variant="secondary" size="sm" className="w-full justify-start" onClick={openCreateModal}>
-                            <span className="material-icons-round text-xs mr-2">add</span>
-                            Add Collection
+                <Sidebar
+                    title="MAIN NAVIGATION"
+                    onCollapse={() => setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed)}
+                    isCollapsed={isLeftSidebarCollapsed}
+                >
+                    <div className={isLeftSidebarCollapsed ? "px-2 mb-4 flex justify-center" : "px-4 mb-4"}>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            className={isLeftSidebarCollapsed ? "w-8 h-8 p-0 justify-center" : "w-full justify-start"}
+                            onClick={openCreateModal}
+                            title="Add Collection"
+                        >
+                            <span className={isLeftSidebarCollapsed ? "material-icons-round text-xs" : "material-icons-round text-xs mr-2"}>add</span>
+                            {!isLeftSidebarCollapsed && "Add Collection"}
                         </Button>
                     </div>
 
-                    <SidebarSection title="CORE AREAS">
+                    <SidebarSection title="CORE AREAS" isCollapsed={isLeftSidebarCollapsed}>
                         <NavItem
                             icon="dashboard"
                             label="Dashboard"
                             isActive={activeView === 'dashboard'}
                             onClick={handleNavigateToDashboard}
+                            collapsed={isLeftSidebarCollapsed}
                         />
 
                         {collections.length > 0 && (
@@ -221,6 +236,7 @@ function AppContent() {
                                     icon="layers"
                                     label="Collections"
                                     onContextMenu={handleCollectionsHeaderContextMenu}
+                                    collapsed={isLeftSidebarCollapsed}
                                 />
                                 {collections.map(c => (
                                     <NavItem
@@ -229,6 +245,7 @@ function AppContent() {
                                         label={c.name}
                                         level={0}
                                         onContextMenu={(e) => handleCollectionContextMenu(e, c.id, c.name)}
+                                        collapsed={isLeftSidebarCollapsed}
                                     >
                                         {/* Render nested notes from placements */}
                                         {c.placements?.map((p: any) => (
@@ -239,6 +256,7 @@ function AppContent() {
                                                 level={1}
                                                 isActive={activeView === 'note' && activeNoteId === p.note.id}
                                                 onClick={() => handleNavigateToNote(p.note.id)}
+                                                collapsed={isLeftSidebarCollapsed}
                                             />
                                         ))}
                                         {(!c.placements || c.placements.length === 0) && (
@@ -251,25 +269,34 @@ function AppContent() {
                             </>
                         )}
 
-                        <NavItem icon="task_alt" label="Tasks" />
+                        <NavItem icon="task_alt" label="Tasks" collapsed={isLeftSidebarCollapsed} />
                     </SidebarSection>
 
-                    <SidebarSection title="GLOBAL TAGS">
-                        <div className="flex flex-wrap gap-2 px-2">
-                            <Tag variant="default">#active</Tag>
-                            <Tag variant="active">#priority</Tag>
-                            <Tag variant="default">#draft</Tag>
-                        </div>
+                    <SidebarSection title="GLOBAL TAGS" isCollapsed={isLeftSidebarCollapsed}>
+                        {isLeftSidebarCollapsed ? (
+                            <div className="flex flex-col items-center gap-2">
+                                <span className="text-[10px] text-slate-400">#</span>
+                            </div>
+                        ) : (
+                            <div className="flex flex-wrap gap-2 px-2">
+                                <Tag variant="default">#active</Tag>
+                                <Tag variant="active">#priority</Tag>
+                                <Tag variant="default">#draft</Tag>
+                            </div>
+                        )}
                     </SidebarSection>
 
-                    <SidebarSection title="EXPLORE & HISTORY">
-                        <NavItem icon="insights" label="Visualizations" />
-                        <NavItem icon="history" label="Recent Activity" />
+                    <SidebarSection title="EXPLORE & HISTORY" isCollapsed={isLeftSidebarCollapsed}>
+                        <NavItem icon="insights" label="Visualizations" collapsed={isLeftSidebarCollapsed} />
+                        <NavItem icon="history" label="Recent Activity" collapsed={isLeftSidebarCollapsed} />
                     </SidebarSection>
                 </Sidebar>
             }
             rightPanel={
-                <RightPanel>
+                <RightPanel
+                    onCollapse={() => setIsRightSidebarCollapsed(!isRightSidebarCollapsed)}
+                    isCollapsed={isRightSidebarCollapsed}
+                >
                     <InsightsSection>
                         <div className="grid grid-cols-2 gap-4 mb-8">
                             <StatCard

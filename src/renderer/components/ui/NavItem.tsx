@@ -16,6 +16,8 @@ export interface NavItemProps extends HTMLAttributes<HTMLDivElement> {
     children?: React.ReactNode
     /** Default expanded state */
     defaultExpanded?: boolean
+    /** Whether the item is in collapsed interaction mode */
+    collapsed?: boolean
 }
 
 /**
@@ -23,7 +25,7 @@ export interface NavItemProps extends HTMLAttributes<HTMLDivElement> {
  * Supports icons, active states, counts, and nested indentation.
  */
 export const NavItem = forwardRef<HTMLDivElement, NavItemProps>(
-    ({ className, icon, label, isActive = false, count, level = 0, children, defaultExpanded = false, ...props }, ref) => {
+    ({ className, icon, label, isActive = false, count, level = 0, children, defaultExpanded = false, collapsed = false, ...props }, ref) => {
         const [isExpanded, setIsExpanded] = useState(defaultExpanded)
         const hasChildren = !!children
 
@@ -34,7 +36,7 @@ export const NavItem = forwardRef<HTMLDivElement, NavItemProps>(
         }
 
         const handleToggle = (e: React.MouseEvent) => {
-            if (hasChildren) {
+            if (hasChildren && !collapsed) {
                 e.stopPropagation() // Prevent triggering navigation
                 setIsExpanded(!isExpanded)
             }
@@ -46,8 +48,8 @@ export const NavItem = forwardRef<HTMLDivElement, NavItemProps>(
                     ref={ref}
                     className={cn(
                         // Base styles
-                        'flex items-center space-x-2 py-1.5 rounded-md cursor-pointer group select-none',
-                        paddingClasses[level],
+                        'flex items-center space-x-2 py-1.5 rounded-md cursor-pointer group select-none transition-all duration-200',
+                        collapsed ? 'px-2 justify-center' : paddingClasses[level],
 
                         // State styles
                         {
@@ -58,8 +60,9 @@ export const NavItem = forwardRef<HTMLDivElement, NavItemProps>(
                         className
                     )}
                     {...props}
+                    title={collapsed ? label : undefined}
                 >
-                    {hasChildren && (
+                    {hasChildren && !collapsed && (
                         <button
                             onClick={handleToggle}
                             className="p-0.5 rounded-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-1"
@@ -70,7 +73,7 @@ export const NavItem = forwardRef<HTMLDivElement, NavItemProps>(
                         </button>
                     )}
 
-                    {!hasChildren && <div className="w-[20px]" />} {/* Spacer for alignment if no chevron */}
+                    {!hasChildren && !collapsed && <div className="w-[20px]" />} {/* Spacer for alignment if no chevron */}
 
                     <span className={cn(
                         'material-icons-round text-sm transition-colors',
@@ -81,25 +84,30 @@ export const NavItem = forwardRef<HTMLDivElement, NavItemProps>(
                     )}>
                         {icon}
                     </span>
-                    <span className={cn(
-                        'text-sm font-medium truncate flex-1',
-                        {
-                            'text-slate-600 dark:text-text-secondary-dark': !isActive && level > 0,
-                            'text-slate-900 dark:text-text-main-dark': !isActive && level === 0,
-                            'text-primary': isActive,
-                        }
-                    )}>
-                        {label}
-                    </span>
-                    {count !== undefined && (
-                        <span className="ml-2 text-[10px] text-slate-400 dark:text-text-secondary-dark font-mono">
-                            {count}
-                        </span>
+
+                    {!collapsed && (
+                        <>
+                            <span className={cn(
+                                'text-sm font-medium truncate flex-1 transition-opacity duration-200',
+                                {
+                                    'text-slate-600 dark:text-text-secondary-dark': !isActive && level > 0,
+                                    'text-slate-900 dark:text-text-main-dark': !isActive && level === 0,
+                                    'text-primary': isActive,
+                                }
+                            )}>
+                                {label}
+                            </span>
+                            {count !== undefined && (
+                                <span className="ml-2 text-[10px] text-slate-400 dark:text-text-secondary-dark font-mono transition-opacity duration-200">
+                                    {count}
+                                </span>
+                            )}
+                        </>
                     )}
                 </div>
 
                 {/* Nested Children */}
-                {hasChildren && isExpanded && (
+                {hasChildren && isExpanded && !collapsed && (
                     <div className="mt-1">
                         {children}
                     </div>
