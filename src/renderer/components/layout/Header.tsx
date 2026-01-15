@@ -56,10 +56,12 @@ export function DefaultLogo() {
  */
 export function HeaderNav({
     items,
-    activeItem
+    activeItem,
+    onNavigate
 }: {
     items: { id: string; label: string; href?: string }[]
     activeItem?: string
+    onNavigate?: (id: string) => void
 }) {
     return (
         <nav className="hidden md:flex items-center space-x-1">
@@ -69,6 +71,7 @@ export function HeaderNav({
                     variant={activeItem === item.id ? 'nav-active' : 'nav'}
                     size="sm"
                     className="px-3 py-1.5"
+                    onClick={() => onNavigate?.(item.id)}
                 >
                     {item.label}
                 </Button>
@@ -76,6 +79,7 @@ export function HeaderNav({
         </nav>
     )
 }
+
 
 /**
  * Header actions (settings, notifications, user).

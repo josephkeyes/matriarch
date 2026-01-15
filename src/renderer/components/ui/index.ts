@@ -22,3 +22,6 @@ export type { NavItemProps } from './NavItem'
 
 export { StatCard } from './StatCard'
 export type { StatCardProps } from './StatCard'
+
+export { SettingsToggle } from './SettingsToggle'
+export type { SettingsToggleProps } from './SettingsToggle'
