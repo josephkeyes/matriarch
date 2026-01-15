@@ -39,11 +39,19 @@
     }
   },
   "dependencies": {
+    "@lexical/code": "^0.39.0",
+    "@lexical/history": "^0.39.0",
+    "@lexical/link": "^0.39.0",
+    "@lexical/list": "^0.39.0",
+    "@lexical/markdown": "^0.39.0",
+    "@lexical/react": "^0.39.0",
+    "@lexical/rich-text": "^0.39.0",
     "@libsql/client": "^0.8.1",
     "@prisma/adapter-libsql": "^7.2.0",
     "@prisma/client": "^7.2.0",
     "ai": "^6.0.37",
     "clsx": "^2.1.0",
+    "lexical": "^0.39.0",
     "ollama-ai-provider-v2": "^2.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -51,6 +59,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
+    "@tailwindcss/typography": "^0.5.19",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",
     "@types/node": "^20.11.0",

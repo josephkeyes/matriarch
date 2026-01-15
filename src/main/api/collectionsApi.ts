@@ -15,7 +15,12 @@ export async function listCollections() {
     return db.collection.findMany({
         orderBy: { createdAt: 'desc' },
         include: {
-            folders: true
+            folders: true,
+            placements: {
+                include: {
+                    note: true
+                }
+            }
         }
     })
 }

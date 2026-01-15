@@ -11,6 +11,8 @@ interface CreateNoteDTO {
     title: string
     content?: string
     metadata?: Record<string, any>
+    collectionId?: string
+    folderId?: string
 }
 
 interface UpdateNoteDTO {
@@ -24,12 +26,39 @@ interface UpdateNoteDTO {
  */
 export async function createNote(data: CreateNoteDTO) {
     const db = DatabaseClient.getInstance().getClient()
-    return db.note.create({
-        data: {
-            title: data.title,
-            content: data.content || '',
-            metadata: data.metadata ? JSON.stringify(data.metadata) : undefined
+
+    // If no placement, just create the note
+    if (!data.collectionId && !data.folderId) {
+        return db.note.create({
+            data: {
+                title: data.title,
+                content: data.content || '',
+                metadata: data.metadata ? JSON.stringify(data.metadata) : undefined
+            }
+        })
+    }
+
+    // Use transaction for placement
+    return db.$transaction(async (tx) => {
+        const note = await tx.note.create({
+            data: {
+                title: data.title,
+                content: data.content || '',
+                metadata: data.metadata ? JSON.stringify(data.metadata) : undefined
+            }
+        })
+
+        if (data.collectionId) {
+            await tx.notePlacement.create({
+                data: {
+                    noteId: note.id,
+                    collectionId: data.collectionId,
+                    folderId: data.folderId
+                }
+            })
         }
+
+        return note
     })
 }
 

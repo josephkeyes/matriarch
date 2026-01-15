@@ -1084,9 +1084,14 @@ const CHANNELS = {
     CREATE: "collections:create",
     UPDATE: "collections:update",
     DELETE: "collections:delete"
+  },
+  NOTES: {
+    CREATE: "notes:create",
+    READ: "notes:read",
+    UPDATE: "notes:update",
+    DELETE: "notes:delete"
   }
   // Future channels:
-  // NOTES: { CREATE: 'notes:create', ... }
   // TASKS: { CREATE: 'tasks:create', ... }
 };
 function registerSystemApi() {
@@ -1139,7 +1144,12 @@ async function listCollections() {
   return db.collection.findMany({
     orderBy: { createdAt: "desc" },
     include: {
-      folders: true
+      folders: true,
+      placements: {
+        include: {
+          note: true
+        }
+      }
     }
   });
 }
@@ -1168,12 +1178,82 @@ function registerCollectionsApi() {
   ipcMain.handle(CHANNELS.COLLECTIONS.UPDATE, async (_, id, data) => updateCollection(id, data));
   ipcMain.handle(CHANNELS.COLLECTIONS.DELETE, async (_, id) => deleteCollection(id));
 }
+async function createNote(data) {
+  const db = DatabaseClient.getInstance().getClient();
+  if (!data.collectionId && !data.folderId) {
+    return db.note.create({
+      data: {
+        title: data.title,
+        content: data.content || "",
+        metadata: data.metadata ? JSON.stringify(data.metadata) : void 0
+      }
+    });
+  }
+  return db.$transaction(async (tx) => {
+    const note = await tx.note.create({
+      data: {
+        title: data.title,
+        content: data.content || "",
+        metadata: data.metadata ? JSON.stringify(data.metadata) : void 0
+      }
+    });
+    if (data.collectionId) {
+      await tx.notePlacement.create({
+        data: {
+          noteId: note.id,
+          collectionId: data.collectionId,
+          folderId: data.folderId
+        }
+      });
+    }
+    return note;
+  });
+}
+async function getNote(id) {
+  const db = DatabaseClient.getInstance().getClient();
+  return db.note.findUnique({
+    where: { id },
+    include: {
+      placements: {
+        include: {
+          collection: true,
+          folder: true
+        }
+      },
+      categories: true
+    }
+  });
+}
+async function updateNote(id, data) {
+  const db = DatabaseClient.getInstance().getClient();
+  const updateData = { ...data };
+  if (data.metadata) {
+    updateData.metadata = JSON.stringify(data.metadata);
+  }
+  return db.note.update({
+    where: { id },
+    data: updateData
+  });
+}
+async function deleteNote(id) {
+  const db = DatabaseClient.getInstance().getClient();
+  return db.note.delete({
+    where: { id }
+  });
+}
+function registerNotesApi() {
+  ipcMain.handle(CHANNELS.NOTES.CREATE, async (_, data) => createNote(data));
+  ipcMain.handle(CHANNELS.NOTES.READ, async (_, id) => getNote(id));
+  ipcMain.handle(CHANNELS.NOTES.UPDATE, async (_, id, data) => updateNote(id, data));
+  ipcMain.handle(CHANNELS.NOTES.DELETE, async (_, id) => deleteNote(id));
+}
 function registerAllHandlers() {
   console.log("Registering API handlers...");
   registerSystemApi();
   registerSettingsApi();
   registerAgentsApi();
   registerCollectionsApi();
+  registerNotesApi();
   console.log("API handlers registered successfully");
 }
 const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));

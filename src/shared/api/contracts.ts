@@ -100,7 +100,10 @@ export interface Collection {
     createdAt: Date
     updatedAt: Date
     folders?: any[] // Todo: Define Folder interface
-    placements?: any[] // Todo: Define NotePlacement interface
+    placements?: {
+        note: Note
+        folderId: string | null
+    }[]
 }
 
 export interface CollectionsApi {
@@ -127,4 +130,45 @@ export interface MatriarchApi {
     settings: SettingsApi
     agents: AgentsApi
     collections: CollectionsApi
+    notes: NotesApi
+}
+
+// ============================================================================
+// Notes API
+// ============================================================================
+
+export interface Note {
+    id: string
+    title: string
+    content: string
+    metadata?: string | null
+    createdAt: Date
+    updatedAt: Date
+    placements?: any[] // Todo: Define NotePlacement
+    categories?: any[] // Todo: Define Category
+}
+
+export interface CreateNoteDTO {
+    title: string
+    content?: string
+    metadata?: Record<string, any>
+    collectionId?: string
+    folderId?: string
+}
+
+export interface UpdateNoteDTO {
+    title?: string
+    content?: string
+    metadata?: Record<string, any>
+}
+
+export interface NotesApi {
+    /** Create a new note */
+    create(data: CreateNoteDTO): Promise<Note>
+    /** Get a note by ID */
+    read(id: string): Promise<Note | null>
+    /** Update a note */
+    update(id: string, data: UpdateNoteDTO): Promise<Note>
+    /** Delete a note */
+    delete(id: string): Promise<void>
 }
