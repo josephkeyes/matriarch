@@ -61,9 +61,10 @@ function MarkdownLoaderPlugin({ markdown }: { markdown: string }) {
 
 interface NoteViewProps {
     noteId: string;
+    onNoteUpdate?: () => void;
 }
 
-export function NoteView({ noteId }: NoteViewProps) {
+export function NoteView({ noteId, onNoteUpdate }: NoteViewProps) {
     const [note, setNote] = useState<Note | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -99,18 +100,24 @@ export function NoteView({ noteId }: NoteViewProps) {
         };
     }, [noteId]);
 
-    const handleSave = useCallback(async (content: string) => {
+    const handleUpdate = useCallback(async (updates: { content?: string, title?: string }) => {
         if (!noteId || !window.matriarch?.notes) return;
 
         setIsSaving(true);
         try {
-            await window.matriarch.notes.update(noteId, { content });
+            await window.matriarch.notes.update(noteId, updates);
+            // Update local state for immediate UI feedback if needed
+            setNote(prev => prev ? { ...prev, ...updates } : null);
+            // Notify parent if title changed (to refresh sidebar)
+            if (updates.title && onNoteUpdate) {
+                onNoteUpdate();
+            }
         } catch (e) {
             console.error("Failed to save note:", e);
         } finally {
             setIsSaving(false);
         }
-    }, [noteId]);
+    }, [noteId, onNoteUpdate]);
 
     const onChange = useCallback((editorState: any, editor: any) => {
         editorState.read(() => {
@@ -120,10 +127,17 @@ export function NoteView({ noteId }: NoteViewProps) {
             // Debounce save
             if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
             saveTimeoutRef.current = setTimeout(() => {
-                handleSave(markdown);
+                handleUpdate({ content: markdown });
             }, 1000); // Auto-save after 1 second of inactivity
         });
-    }, [handleSave]);
+    }, [handleUpdate]);
+
+    const handleTitleBlur = useCallback((e: React.FocusEvent<HTMLHeadingElement>) => {
+        const newTitle = e.currentTarget.textContent || 'Untitled Note';
+        if (note?.title !== newTitle) {
+            handleUpdate({ title: newTitle });
+        }
+    }, [note?.title, handleUpdate]);
 
     const initialConfig = {
         namespace: 'NoteView',
@@ -164,7 +178,18 @@ export function NoteView({ noteId }: NoteViewProps) {
             {/* Note Header */}
             <div className="px-8 py-5 border-b border-slate-100 dark:border-border-dark flex items-center justify-between sticky top-0 bg-white/95 dark:bg-background-dark/95 backdrop-blur-md z-10">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-text-main-dark tracking-tight outline-none focus:ring-2 focus:ring-primary/50 rounded px-1 -ml-1 transition-all" contentEditable suppressContentEditableWarning>
+                    <h1
+                        className="text-2xl font-bold text-slate-900 dark:text-text-main-dark tracking-tight outline-none focus:ring-2 focus:ring-primary/50 rounded px-1 -ml-1 transition-all"
+                        contentEditable
+                        suppressContentEditableWarning
+                        onBlur={handleTitleBlur}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                e.currentTarget.blur();
+                            }
+                        }}
+                    >
                         {note.title}
                     </h1>
                     <p className="text-xs text-slate-400 dark:text-text-secondary-dark mt-1 flex items-center gap-2">
