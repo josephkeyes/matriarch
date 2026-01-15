@@ -42,6 +42,11 @@ function AppContent() {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
     const [newCollectionName, setNewCollectionName] = useState('')
 
+    // Rename state
+    const [isRenameModalOpen, setIsRenameModalOpen] = useState(false)
+    const [collectionToRename, setCollectionToRename] = useState<{ id: string, name: string } | null>(null)
+    const [renameValue, setRenameValue] = useState('')
+
     useEffect(() => {
         loadCollections()
     }, [])
@@ -83,6 +88,22 @@ function AppContent() {
         }
     }
 
+    const handleRenameCollection = async () => {
+        if (!collectionToRename || !renameValue.trim()) return
+
+        if (window.matriarch?.collections) {
+            try {
+                await window.matriarch.collections.update(collectionToRename.id, { name: renameValue })
+                await loadCollections()
+                setIsRenameModalOpen(false)
+                setCollectionToRename(null)
+            } catch (e) {
+                console.error("Failed to rename collection:", e)
+                alert("Failed to rename collection")
+            }
+        }
+    }
+
     const handleDeleteCollection = async (id: string, name: string) => {
         if (confirm(`Are you sure you want to delete the collection "${name}"?`)) {
             try {
@@ -97,6 +118,15 @@ function AppContent() {
 
     const handleCollectionContextMenu = (e: React.MouseEvent, id: string, name: string) => {
         showContextMenu(e, [
+            {
+                label: 'Rename Collection',
+                icon: 'edit',
+                action: () => {
+                    setCollectionToRename({ id, name })
+                    setRenameValue(name)
+                    setIsRenameModalOpen(true)
+                }
+            },
             {
                 label: 'Delete Collection',
                 icon: 'delete',
@@ -283,6 +313,36 @@ function AppContent() {
                         value={newCollectionName}
                         onChange={(e) => setNewCollectionName(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleCreateCollection()}
+                        autoFocus
+                    />
+                </div>
+            </Modal>
+
+            {/* Rename Collection Modal */}
+            <Modal
+                isOpen={isRenameModalOpen}
+                onClose={() => setIsRenameModalOpen(false)}
+                title="Rename Collection"
+                description="Enter a new name for your collection."
+                footer={
+                    <>
+                        <Button variant="secondary" onClick={() => setIsRenameModalOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button variant="primary" onClick={handleRenameCollection} disabled={!renameValue.trim()}>
+                            Save Changes
+                        </Button>
+                    </>
+                }
+            >
+                <div>
+                    <input
+                        type="text"
+                        className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                        placeholder="Collection Name"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleRenameCollection()}
                         autoFocus
                     />
                 </div>
