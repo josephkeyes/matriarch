@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { ThemeProvider, useThemeContext } from './contexts/ThemeContext'
 import {
     AppShell,
@@ -17,7 +18,8 @@ import {
     NavItem,
     Tag,
     StatCard,
-    FloatingActionButton
+    FloatingActionButton,
+    Modal
 } from './components/ui'
 
 // Navigation items for header
@@ -34,22 +36,84 @@ const activityData = [30, 60, 40, 90, 70, 20, 50]
 function AppContent() {
     const { toggleTheme, resolvedTheme } = useThemeContext()
 
+    const [collections, setCollections] = useState<any[]>([])
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+    const [newCollectionName, setNewCollectionName] = useState('')
+
+    useEffect(() => {
+        // Fetch collections on mount
+        if (window.matriarch?.collections) {
+            window.matriarch.collections.list().then(setCollections).catch(console.error)
+        } else {
+            console.warn("Matriarch API not ready. Please restart the application.")
+        }
+    }, [])
+
+    const handleCreateCollection = async () => {
+        console.log("Attempting to create collection:", newCollectionName)
+        if (!newCollectionName.trim()) {
+            console.log("Collection name is empty")
+            return
+        }
+
+        if (window.matriarch?.collections) {
+            console.log("API found, sending create request...")
+            try {
+                const result = await window.matriarch.collections.create(newCollectionName)
+                console.log("Collection created result:", result)
+                const updated = await window.matriarch.collections.list()
+                console.log("Fetched updated collections:", updated)
+                setCollections(updated)
+                setNewCollectionName('')
+                setIsCreateModalOpen(false)
+            } catch (e) {
+                console.error("Failed to create collection:", e)
+            }
+        } else {
+            console.error("window.matriarch.collections is undefined!")
+            alert("Internal Error: API is not connected. Check console logs.")
+        }
+    }
+
+    const openCreateModal = () => setIsCreateModalOpen(true)
+
     return (
         <AppShell
             header={
                 <Header
                     navigation={<HeaderNav items={navItems} activeItem="dashboard" />}
-                    actions={<HeaderActions />}
+                    actions={
+                        <div className="flex items-center space-x-3">
+                            <Button variant="primary" onClick={openCreateModal}>
+                                <span className="material-icons-round text-xs mr-1">add</span>
+                                New Collection
+                            </Button>
+                            <HeaderActions />
+                        </div>
+                    }
                 />
             }
             sidebar={
                 <Sidebar title="MAIN NAVIGATION">
+                    <div className="px-4 mb-4">
+                        <Button variant="secondary" size="sm" className="w-full justify-start" onClick={openCreateModal}>
+                            <span className="material-icons-round text-xs mr-2">add</span>
+                            Add Collection
+                        </Button>
+                    </div>
+
                     <SidebarSection title="CORE AREAS">
                         <NavItem icon="dashboard" label="Dashboard" isActive />
-                        <NavItem icon="layers" label="Collections" />
-                        <NavItem icon="folder" label="Project Notes" level={1} />
-                        <NavItem icon="folder" label="Research Archives" level={1} />
-                        <NavItem icon="folder" label="Daily Logs" level={1} />
+
+                        {collections.length > 0 && (
+                            <>
+                                <NavItem icon="layers" label="Collections" />
+                                {collections.map(c => (
+                                    <NavItem key={c.id} icon="folder" label={c.name} level={1} />
+                                ))}
+                            </>
+                        )}
+
                         <NavItem icon="task_alt" label="Tasks" />
                     </SidebarSection>
 
@@ -131,7 +195,7 @@ function AppContent() {
                             {resolvedTheme === 'dark' ? 'light_mode' : 'dark_mode'}
                         </span>
                     </Button>
-                    <Button variant="primary">
+                    <Button variant="primary" onClick={openCreateModal}>
                         <span className="material-icons-round text-xs mr-1">add</span>
                         New Collection
                     </Button>
@@ -153,16 +217,39 @@ function AppContent() {
                     <div className="bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-xl p-5 h-48 flex items-center justify-center text-slate-400">
                         Collection cards will go here
                     </div>
-                    <div className="bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-xl p-5 h-48 flex items-center justify-center text-slate-400">
-                        Collection cards will go here
-                    </div>
-                    <div className="bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-xl p-5 h-48 flex items-center justify-center text-slate-400">
-                        Collection cards will go here
-                    </div>
                 </div>
             </div>
 
             <FloatingActionButton />
+
+            <Modal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                title="Create New Collection"
+                description="Give your new collection a name to get started."
+                footer={
+                    <>
+                        <Button variant="secondary" onClick={() => setIsCreateModalOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button variant="primary" onClick={handleCreateCollection} disabled={!newCollectionName.trim()}>
+                            Create Collection
+                        </Button>
+                    </>
+                }
+            >
+                <div>
+                    <input
+                        type="text"
+                        className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-border-dark bg-white dark:bg-background-dark text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                        placeholder="e.g., Research Project"
+                        value={newCollectionName}
+                        onChange={(e) => setNewCollectionName(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleCreateCollection()}
+                        autoFocus
+                    />
+                </div>
+            </Modal>
         </AppShell>
     )
 }
@@ -176,4 +263,3 @@ function App() {
 }
 
 export default App
-

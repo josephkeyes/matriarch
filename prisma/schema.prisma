@@ -68,3 +68,96 @@ model AgentActionLog {
 
   @@map("agent_action_logs")
 }
+
+// ============================================================================
+// Notes & Collections (Phase-1)
+// ============================================================================
+
+model Note {
+  id        String   @id @default(uuid())
+  title     String
+  content   String   // The source of truth for the note content
+  metadata  String?  // JSON encoded metadata
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  placements NotePlacement[]
+  categories Category[] 
+  
+  outgoingAssociations NoteAssociation[] @relation("source")
+  incomingAssociations NoteAssociation[] @relation("target")
+
+  @@map("notes")
+}
+
+model Collection {
+  id        String   @id @default(uuid())
+  name      String
+  
+  folders    Folder[]
+  placements NotePlacement[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("collections")
+}
+
+model Folder {
+  id           String      @id @default(uuid())
+  name         String
+  collection   Collection  @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  collectionId String      @map("collection_id")
+
+  parent       Folder?     @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  parentId     String?     @map("parent_id")
+  children     Folder[]    @relation("FolderHierarchy")
+
+  placements   NotePlacement[]
+
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("folders")
+}
+
+model NotePlacement {
+  id           String     @id @default(uuid())
+  note         Note       @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  noteId       String     @map("note_id")
+  
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  collectionId String     @map("collection_id")
+  
+  folder       Folder?    @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  folderId     String?    @map("folder_id")
+
+  @@unique([noteId, collectionId, folderId])
+  
+  @@map("note_placements")
+}
+
+model Category {
+  id    String @id @default(uuid())
+  name  String @unique
+  
+  notes Note[]
+
+  @@map("categories")
+}
+
+model NoteAssociation {
+  id        String  @id @default(uuid())
+  source    Note    @relation("source", fields: [sourceId], references: [id], onDelete: Cascade)
+  sourceId  String  @map("source_id")
+  
+  target    Note    @relation("target", fields: [targetId], references: [id], onDelete: Cascade)
+  targetId  String  @map("target_id")
+
+  type      String? // e.g. "relates_to", "blocks", etc.
+  metadata  String? // JSON for future extensibility
+
+  @@unique([sourceId, targetId])
+  @@map("note_associations")
+}

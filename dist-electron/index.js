@@ -842,6 +842,80 @@ const _DatabaseClient = class _DatabaseClient {
                     timestamp INTEGER
                 )
             `);
+      await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS notes (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    metadata TEXT,
+                    created_at DATETIME NOT NULL DEFAULT (datetime('now')),
+                    updated_at DATETIME NOT NULL
+                )
+            `);
+      await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS collections (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    created_at DATETIME NOT NULL DEFAULT (datetime('now')),
+                    updated_at DATETIME NOT NULL
+                )
+            `);
+      await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS folders (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    collection_id TEXT NOT NULL,
+                    parent_id TEXT,
+                    created_at DATETIME NOT NULL DEFAULT (datetime('now')),
+                    updated_at DATETIME NOT NULL,
+                    FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE,
+                    FOREIGN KEY (parent_id) REFERENCES folders(id) ON DELETE CASCADE
+                )
+            `);
+      await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS note_placements (
+                    id TEXT PRIMARY KEY,
+                    note_id TEXT NOT NULL,
+                    collection_id TEXT NOT NULL,
+                    folder_id TEXT,
+                    FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE,
+                    FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE,
+                    FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE,
+                    UNIQUE(note_id, collection_id, folder_id)
+                )
+            `);
+      await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS categories (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL UNIQUE
+                )
+            `);
+      await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS "_CategoryToNote" (
+                    "A" TEXT NOT NULL,
+                    "B" TEXT NOT NULL,
+                    FOREIGN KEY ("A") REFERENCES "categories" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+                    FOREIGN KEY ("B") REFERENCES "notes" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+                )
+            `);
+      await this.prisma.$executeRawUnsafe(`
+                CREATE UNIQUE INDEX IF NOT EXISTS "_CategoryToNote_AB_unique" ON "_CategoryToNote"("A", "B");
+            `);
+      await this.prisma.$executeRawUnsafe(`
+                CREATE INDEX IF NOT EXISTS "_CategoryToNote_B_index" ON "_CategoryToNote"("B");
+            `);
+      await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS note_associations (
+                    id TEXT PRIMARY KEY,
+                    source_id TEXT NOT NULL,
+                    target_id TEXT NOT NULL,
+                    type TEXT,
+                    metadata TEXT,
+                    FOREIGN KEY (source_id) REFERENCES notes(id) ON DELETE CASCADE,
+                    FOREIGN KEY (target_id) REFERENCES notes(id) ON DELETE CASCADE,
+                    UNIQUE(source_id, target_id)
+                )
+            `);
       const timestamp = BigInt(Date.now());
       await this.prisma.startupEvent.create({
         data: {
@@ -870,6 +944,41 @@ const _DatabaseClient = class _DatabaseClient {
 };
 __publicField(_DatabaseClient, "instance");
 let DatabaseClient = _DatabaseClient;
+const DEFAULT_SETTINGS = {
+  defaultProvider: "ollama",
+  defaultModel: "llama3.2",
+  providerBaseUrl: "http://localhost:11434"
+};
+const SETTINGS_KEY = "ai_settings";
+async function getAISettings() {
+  try {
+    const db = DatabaseClient.getInstance().getClient();
+    const record = await db.systemSettings.findUnique({
+      where: { key: SETTINGS_KEY }
+    });
+    if (record == null ? void 0 : record.value) {
+      return { ...DEFAULT_SETTINGS, ...JSON.parse(record.value) };
+    }
+  } catch (error) {
+    console.warn("Failed to load AI settings, using defaults:", error);
+  }
+  return DEFAULT_SETTINGS;
+}
+async function updateAISettings(settings) {
+  const db = DatabaseClient.getInstance().getClient();
+  const current = await getAISettings();
+  const updated = { ...current, ...settings };
+  await db.systemSettings.upsert({
+    where: { key: SETTINGS_KEY },
+    create: {
+      key: SETTINGS_KEY,
+      value: JSON.stringify(updated)
+    },
+    update: {
+      value: JSON.stringify(updated)
+    }
+  });
+}
 const _AgentOrchestrator = class _AgentOrchestrator {
   constructor() {
     __publicField(this, "agents", /* @__PURE__ */ new Map());
@@ -880,12 +989,79 @@ const _AgentOrchestrator = class _AgentOrchestrator {
     }
     return _AgentOrchestrator.instance;
   }
-  registerAgent(agentId, agent) {
-    console.log(`Registering agent: ${agentId}`);
-    this.agents.set(agentId, agent);
+  /**
+   * Register an agent with the orchestrator.
+   */
+  registerAgent(agent) {
+    if (this.agents.has(agent.id)) {
+      console.warn(`Agent ${agent.id} is already registered, replacing...`);
+    }
+    console.log(`Registering agent: ${agent.id} (${agent.name})`);
+    this.agents.set(agent.id, agent);
   }
+  /**
+   * Unregister an agent.
+   */
+  unregisterAgent(agentId) {
+    const removed = this.agents.delete(agentId);
+    if (removed) {
+      console.log(`Unregistered agent: ${agentId}`);
+    }
+    return removed;
+  }
+  /**
+   * Get an agent by ID.
+   */
   getAgent(agentId) {
     return this.agents.get(agentId);
+  }
+  /**
+   * List all registered agents.
+   */
+  listAgents() {
+    return Array.from(this.agents.values()).map((agent) => ({
+      id: agent.id,
+      name: agent.name,
+      description: agent.description
+    }));
+  }
+  /**
+   * Execute an agent with the given input and optional model override.
+   */
+  async executeAgent(agentId, input, modelOverride) {
+    const agent = this.agents.get(agentId);
+    if (!agent) {
+      return {
+        success: false,
+        output: null,
+        actions: [],
+        error: `Agent not found: ${agentId}`
+      };
+    }
+    const context = {
+      input,
+      modelOverride
+    };
+    console.log(`Executing agent: ${agentId} (${agent.name})`);
+    try {
+      const result = await agent.execute(context);
+      console.log(`Agent ${agentId} completed: success=${result.success}`);
+      return result;
+    } catch (error) {
+      console.error(`Agent ${agentId} failed:`, error);
+      return {
+        success: false,
+        output: null,
+        actions: [],
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+  /**
+   * Get count of registered agents.
+   */
+  get agentCount() {
+    return this.agents.size;
   }
 };
 __publicField(_AgentOrchestrator, "instance");
@@ -893,11 +1069,23 @@ let AgentOrchestrator = _AgentOrchestrator;
 const CHANNELS = {
   SYSTEM: {
     HEALTH: "system:health"
+  },
+  SETTINGS: {
+    GET_AI: "settings:get-ai",
+    UPDATE_AI: "settings:update-ai"
+  },
+  AGENTS: {
+    LIST: "agents:list",
+    EXECUTE: "agents:execute",
+    GET_LOGS: "agents:get-logs"
+  },
+  COLLECTIONS: {
+    LIST: "collections:list",
+    CREATE: "collections:create"
   }
-  // Future channels will be added here:
+  // Future channels:
   // NOTES: { CREATE: 'notes:create', ... }
   // TASKS: { CREATE: 'tasks:create', ... }
-  // AGENTS: { INVOKE: 'agents:invoke', ... }
 };
 function registerSystemApi() {
   ipcMain.handle(CHANNELS.SYSTEM.HEALTH, async () => {
@@ -908,9 +1096,67 @@ function registerSystemApi() {
     };
   });
 }
+function registerSettingsApi() {
+  ipcMain.handle(CHANNELS.SETTINGS.GET_AI, async () => {
+    return getAISettings();
+  });
+  ipcMain.handle(
+    CHANNELS.SETTINGS.UPDATE_AI,
+    async (_, settings) => {
+      await updateAISettings(settings);
+    }
+  );
+}
+function registerAgentsApi() {
+  ipcMain.handle(CHANNELS.AGENTS.LIST, async () => {
+    const orchestrator = AgentOrchestrator.getInstance();
+    return orchestrator.listAgents();
+  });
+  ipcMain.handle(
+    CHANNELS.AGENTS.EXECUTE,
+    async (_, agentId, input, modelOverride) => {
+      const orchestrator = AgentOrchestrator.getInstance();
+      return orchestrator.executeAgent(agentId, input, modelOverride);
+    }
+  );
+  ipcMain.handle(
+    CHANNELS.AGENTS.GET_LOGS,
+    async (_, agentId, limit = 50) => {
+      const db = DatabaseClient.getInstance().getClient();
+      return db.agentLog.findMany({
+        where: { agentId },
+        include: { actions: true },
+        orderBy: { timestamp: "desc" },
+        take: limit
+      });
+    }
+  );
+}
+async function listCollections() {
+  const db = DatabaseClient.getInstance().getClient();
+  return db.collection.findMany({
+    orderBy: { createdAt: "desc" },
+    include: {
+      folders: true
+    }
+  });
+}
+async function createCollection(name2) {
+  const db = DatabaseClient.getInstance().getClient();
+  return db.collection.create({
+    data: { name: name2 }
+  });
+}
+function registerCollectionsApi() {
+  ipcMain.handle(CHANNELS.COLLECTIONS.LIST, async () => listCollections());
+  ipcMain.handle(CHANNELS.COLLECTIONS.CREATE, async (_, name2) => createCollection(name2));
+}
 function registerAllHandlers() {
   console.log("Registering API handlers...");
   registerSystemApi();
+  registerSettingsApi();
+  registerAgentsApi();
+  registerCollectionsApi();
   console.log("API handlers registered successfully");
 }
 const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
@@ -968,10 +1214,6 @@ app.whenReady().then(async () => {
 });
 export {
   MAIN_DIST,
-  RENDERER_DIST,
-  VITE_DEV_SERVER_URL
-};
-IST,
   RENDERER_DIST,
   VITE_DEV_SERVER_URL
 };

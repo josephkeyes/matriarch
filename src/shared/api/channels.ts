@@ -16,6 +16,10 @@ export const CHANNELS = {
         EXECUTE: 'agents:execute',
         GET_LOGS: 'agents:get-logs',
     },
+    COLLECTIONS: {
+        LIST: 'collections:list',
+        CREATE: 'collections:create',
+    },
     // Future channels:
     // NOTES: { CREATE: 'notes:create', ... }
     // TASKS: { CREATE: 'tasks:create', ... }

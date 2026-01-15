@@ -53,6 +53,102 @@ export class DatabaseClient {
                 )
             `)
 
+            await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS notes (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    metadata TEXT,
+                    created_at DATETIME NOT NULL DEFAULT (datetime('now')),
+                    updated_at DATETIME NOT NULL
+                )
+            `)
+
+            await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS collections (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    created_at DATETIME NOT NULL DEFAULT (datetime('now')),
+                    updated_at DATETIME NOT NULL
+                )
+            `)
+
+            await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS folders (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    collection_id TEXT NOT NULL,
+                    parent_id TEXT,
+                    created_at DATETIME NOT NULL DEFAULT (datetime('now')),
+                    updated_at DATETIME NOT NULL,
+                    FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE,
+                    FOREIGN KEY (parent_id) REFERENCES folders(id) ON DELETE CASCADE
+                )
+            `)
+
+            await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS note_placements (
+                    id TEXT PRIMARY KEY,
+                    note_id TEXT NOT NULL,
+                    collection_id TEXT NOT NULL,
+                    folder_id TEXT,
+                    FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE,
+                    FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE,
+                    FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE,
+                    UNIQUE(note_id, collection_id, folder_id)
+                )
+            `)
+
+            await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS categories (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL UNIQUE
+                )
+            `)
+
+            // m-n relation for categories-notes
+            // Prisma implicit many-to-many uses a separate join table name usually '_CategoryToNote' or similar if not specified.
+            // But I didn't specify @@map on the relation table, I let Prisma handle it?
+            // Wait, in schema.prisma I defined `notes Note[]` and `Category`. This is an IMPLICIT m-n.
+            // Prisma expects `_CategoryToNote` table with `A` and `B` columns.
+            // I should probably make it EXPLICIT in schema to control the table name?
+            // Or I can just create the table Prisma expects.
+            // Let's create the implicit table `_CategoryToNote` (A=Category.id, B=Note.id).
+            // Actually, for robustness, I should have defined an explicit join model in schema.
+            // But for now I will create the standard Prisma convention table.
+            // Table name: _CategoryToNote
+            // Cols: A (references Category.id), B (references Note.id)
+
+            await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS "_CategoryToNote" (
+                    "A" TEXT NOT NULL,
+                    "B" TEXT NOT NULL,
+                    FOREIGN KEY ("A") REFERENCES "categories" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+                    FOREIGN KEY ("B") REFERENCES "notes" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+                )
+            `)
+
+            await this.prisma.$executeRawUnsafe(`
+                CREATE UNIQUE INDEX IF NOT EXISTS "_CategoryToNote_AB_unique" ON "_CategoryToNote"("A", "B");
+            `)
+
+            await this.prisma.$executeRawUnsafe(`
+                CREATE INDEX IF NOT EXISTS "_CategoryToNote_B_index" ON "_CategoryToNote"("B");
+            `)
+
+            await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS note_associations (
+                    id TEXT PRIMARY KEY,
+                    source_id TEXT NOT NULL,
+                    target_id TEXT NOT NULL,
+                    type TEXT,
+                    metadata TEXT,
+                    FOREIGN KEY (source_id) REFERENCES notes(id) ON DELETE CASCADE,
+                    FOREIGN KEY (target_id) REFERENCES notes(id) ON DELETE CASCADE,
+                    UNIQUE(source_id, target_id)
+                )
+            `)
+
             const timestamp = BigInt(Date.now())
             await this.prisma.startupEvent.create({
                 data: {

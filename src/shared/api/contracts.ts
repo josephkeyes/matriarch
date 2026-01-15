@@ -91,6 +91,24 @@ export interface AgentsApi {
 }
 
 // ============================================================================
+// Collections API
+// ============================================================================
+
+export interface Collection {
+    id: string
+    name: string
+    createdAt: Date
+    updatedAt: Date
+}
+
+export interface CollectionsApi {
+    /** List all collections */
+    list(): Promise<Collection[]>
+    /** Create a new collection */
+    create(name: string): Promise<Collection>
+}
+
+// ============================================================================
 // Combined API Facade
 // ============================================================================
 
@@ -102,4 +120,5 @@ export interface MatriarchApi {
     system: SystemApi
     settings: SettingsApi
     agents: AgentsApi
+    collections: CollectionsApi
 }
