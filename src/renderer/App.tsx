@@ -23,13 +23,14 @@ import {
     Modal
 } from './components/ui'
 import { NoteView } from './components/NoteView'
+import { SettingsView } from './components/SettingsView'
 
 // Navigation items for header
 const navItems = [
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'mindmaps', label: 'Mind Maps' },
     { id: 'explore', label: 'Explore' },
-    { id: 'tasks', label: 'Tasks' },
+    { id: 'settings', label: 'Settings' },
 ]
 
 // Demo activity data
@@ -44,7 +45,7 @@ function AppContent() {
     const [newCollectionName, setNewCollectionName] = useState('')
 
     // Navigation State
-    const [activeView, setActiveView] = useState<'dashboard' | 'note'>('dashboard')
+    const [activeView, setActiveView] = useState<'dashboard' | 'note' | 'settings'>('dashboard')
     const [activeNoteId, setActiveNoteId] = useState<string | null>(null)
 
     // UI Layout State
@@ -81,6 +82,20 @@ function AppContent() {
     const handleNavigateToDashboard = () => {
         setActiveView('dashboard')
         setActiveNoteId(null)
+    }
+
+    const handleNavigateToSettings = () => {
+        setActiveView('settings')
+        setActiveNoteId(null)
+    }
+
+    const handleHeaderNav = (id: string) => {
+        if (id === 'dashboard') {
+            handleNavigateToDashboard()
+        } else if (id === 'settings') {
+            handleNavigateToSettings()
+        }
+        // Other nav items (mindmaps, explore) not yet implemented
     }
 
     const handleCreateCollection = async () => {
@@ -190,7 +205,13 @@ function AppContent() {
         <AppShell
             header={
                 <Header
-                    navigation={<HeaderNav items={navItems} activeItem="dashboard" />}
+                    navigation={
+                        <HeaderNav
+                            items={navItems}
+                            activeItem={activeView === 'settings' ? 'settings' : 'dashboard'}
+                            onNavigate={handleHeaderNav}
+                        />
+                    }
                     actions={
                         <div className="flex items-center space-x-3">
                             <Button variant="primary" onClick={openCreateModal}>
@@ -341,7 +362,9 @@ function AppContent() {
             }
         >
             {/* Main Content Area */}
-            {activeView === 'note' && activeNoteId ? (
+            {activeView === 'settings' ? (
+                <SettingsView onClose={handleNavigateToDashboard} />
+            ) : activeView === 'note' && activeNoteId ? (
                 <NoteView noteId={activeNoteId} onNoteUpdate={loadCollections} />
             ) : (
                 <>
