@@ -22,8 +22,13 @@ export const CHANNELS = {
         UPDATE: 'collections:update',
         DELETE: 'collections:delete',
     },
+    NOTES: {
+        CREATE: 'notes:create',
+        READ: 'notes:read',
+        UPDATE: 'notes:update',
+        DELETE: 'notes:delete',
+    },
     // Future channels:
-    // NOTES: { CREATE: 'notes:create', ... }
     // TASKS: { CREATE: 'tasks:create', ... }
 } as const
 
