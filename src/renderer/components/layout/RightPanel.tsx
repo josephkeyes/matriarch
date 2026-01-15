@@ -9,6 +9,12 @@ export interface RightPanelProps {
     className?: string
     /** Width variant */
     width?: 'narrow' | 'default'
+    /** Whether panel is collapsible */
+    collapsible?: boolean
+    /** Callback when collapse button is clicked */
+    onCollapse?: () => void
+    /** Current collapsed state */
+    isCollapsed?: boolean
 }
 
 /**
@@ -17,7 +23,10 @@ export interface RightPanelProps {
 export function RightPanel({
     children,
     className,
-    width = 'default'
+    width = 'default',
+    collapsible = true,
+    onCollapse,
+    isCollapsed = false
 }: RightPanelProps) {
     const widthClasses = {
         narrow: 'w-72',
@@ -26,14 +35,37 @@ export function RightPanel({
 
     return (
         <aside className={cn(
-            widthClasses[width],
+            isCollapsed ? 'w-12' : widthClasses[width],
             'border-l border-slate-200 dark:border-border-dark',
             'flex flex-col',
             'bg-white dark:bg-surface-dark',
             'overflow-hidden',
+            'transition-all duration-300 ease-in-out',
             className
         )}>
-            {children}
+            {/* Header / Collapse Toggle */}
+            {collapsible && (
+                <div className={cn(
+                    "flex items-center min-h-[40px]",
+                    isCollapsed ? "justify-center py-2" : "justify-start px-4 py-2"
+                )}>
+                    <Button variant="ghost" size="icon" onClick={onCollapse} className="p-0.5" title={isCollapsed ? "Expand Panel" : "Collapse Panel"}>
+                        <span className={cn(
+                            "material-icons-round text-slate-400 text-sm transition-transform duration-300",
+                            isCollapsed && "rotate-180"
+                        )}>
+                            keyboard_double_arrow_right
+                        </span>
+                    </Button>
+                </div>
+            )}
+
+            <div className={cn(
+                "flex-1 flex flex-col overflow-y-auto custom-scrollbar transition-opacity duration-200",
+                isCollapsed ? "opacity-0 invisible" : "opacity-100 visible"
+            )}>
+                {children}
+            </div>
         </aside>
     )
 }

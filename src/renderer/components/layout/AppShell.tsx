@@ -49,8 +49,9 @@ export function AppShell({
                     {children}
                 </section>
 
+                {/* Temporarily removing this panel until we determine a better UI */}
                 {/* Right Panel */}
-                {rightPanel}
+                {/* {rightPanel} */}
             </main>
         </div>
     )
