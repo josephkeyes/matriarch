@@ -1,6 +1,6 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { listCollections, createCollection } from './collectionsApi'
+import { listCollections, createCollection, updateCollection, deleteCollection } from './collectionsApi'
 import { DatabaseClient } from '../database/DatabaseClient'
 import { app } from 'electron'
 import fs from 'node:fs'
@@ -39,5 +39,26 @@ describe('Collections API', () => {
         expect(list).toHaveLength(1)
         expect(list[0].name).toBe('Test Collection')
         expect(list[0].folders).toBeDefined()
+    })
+
+    it('should update and delete collections', async () => {
+        // Create
+        const created = await createCollection('To Be Deleted')
+        expect(created.name).toBe('To Be Deleted')
+
+        // Update
+        const updated = await updateCollection(created.id, { name: 'Renamed' })
+        expect(updated.name).toBe('Renamed')
+
+        // Verify update in list
+        const listAfterUpdate = await listCollections()
+        expect(listAfterUpdate[0].name).toBe('Renamed')
+
+        // Delete
+        await deleteCollection(created.id)
+
+        // Verify delete
+        const listAfterDelete = await listCollections()
+        expect(listAfterDelete).toHaveLength(0)
     })
 })

@@ -19,6 +19,8 @@ export const CHANNELS = {
     COLLECTIONS: {
         LIST: 'collections:list',
         CREATE: 'collections:create',
+        UPDATE: 'collections:update',
+        DELETE: 'collections:delete',
     },
     // Future channels:
     // NOTES: { CREATE: 'notes:create', ... }

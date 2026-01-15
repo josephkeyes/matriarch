@@ -99,6 +99,8 @@ export interface Collection {
     name: string
     createdAt: Date
     updatedAt: Date
+    folders?: any[] // Todo: Define Folder interface
+    placements?: any[] // Todo: Define NotePlacement interface
 }
 
 export interface CollectionsApi {
@@ -106,6 +108,10 @@ export interface CollectionsApi {
     list(): Promise<Collection[]>
     /** Create a new collection */
     create(name: string): Promise<Collection>
+    /** Update a collection */
+    update(id: string, data: { name?: string }): Promise<Collection>
+    /** Delete a collection */
+    delete(id: string): Promise<void>
 }
 
 // ============================================================================

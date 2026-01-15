@@ -31,6 +31,8 @@ const matriarch: MatriarchApi = {
     collections: {
         list: () => ipcRenderer.invoke(CHANNELS.COLLECTIONS.LIST),
         create: (name: string) => ipcRenderer.invoke(CHANNELS.COLLECTIONS.CREATE, name),
+        update: (id: string, data: { name?: string }) => ipcRenderer.invoke(CHANNELS.COLLECTIONS.UPDATE, id, data),
+        delete: (id: string) => ipcRenderer.invoke(CHANNELS.COLLECTIONS.DELETE, id),
     },
 }
 
