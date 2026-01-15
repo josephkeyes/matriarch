@@ -15,7 +15,9 @@ const CHANNELS = {
   },
   COLLECTIONS: {
     LIST: "collections:list",
-    CREATE: "collections:create"
+    CREATE: "collections:create",
+    UPDATE: "collections:update",
+    DELETE: "collections:delete"
   }
   // Future channels:
   // NOTES: { CREATE: 'notes:create', ... }
@@ -36,7 +38,9 @@ const matriarch = {
   },
   collections: {
     list: () => electron.ipcRenderer.invoke(CHANNELS.COLLECTIONS.LIST),
-    create: (name) => electron.ipcRenderer.invoke(CHANNELS.COLLECTIONS.CREATE, name)
+    create: (name) => electron.ipcRenderer.invoke(CHANNELS.COLLECTIONS.CREATE, name),
+    update: (id, data) => electron.ipcRenderer.invoke(CHANNELS.COLLECTIONS.UPDATE, id, data),
+    delete: (id) => electron.ipcRenderer.invoke(CHANNELS.COLLECTIONS.DELETE, id)
   }
 };
 electron.contextBridge.exposeInMainWorld("matriarch", matriarch);

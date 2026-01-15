@@ -1081,7 +1081,9 @@ const CHANNELS = {
   },
   COLLECTIONS: {
     LIST: "collections:list",
-    CREATE: "collections:create"
+    CREATE: "collections:create",
+    UPDATE: "collections:update",
+    DELETE: "collections:delete"
   }
   // Future channels:
   // NOTES: { CREATE: 'notes:create', ... }
@@ -1147,9 +1149,24 @@ async function createCollection(name2) {
     data: { name: name2 }
   });
 }
+async function updateCollection(id, data) {
+  const db = DatabaseClient.getInstance().getClient();
+  return db.collection.update({
+    where: { id },
+    data
+  });
+}
+async function deleteCollection(id) {
+  const db = DatabaseClient.getInstance().getClient();
+  return db.collection.delete({
+    where: { id }
+  });
+}
 function registerCollectionsApi() {
   ipcMain.handle(CHANNELS.COLLECTIONS.LIST, async () => listCollections());
   ipcMain.handle(CHANNELS.COLLECTIONS.CREATE, async (_, name2) => createCollection(name2));
+  ipcMain.handle(CHANNELS.COLLECTIONS.UPDATE, async (_, id, data) => updateCollection(id, data));
+  ipcMain.handle(CHANNELS.COLLECTIONS.DELETE, async (_, id) => deleteCollection(id));
 }
 function registerAllHandlers() {
   console.log("Registering API handlers...");
