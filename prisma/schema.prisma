@@ -1,0 +1,70 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model SystemMeta {
+  key       String   @id
+  value     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("system_meta")
+}
+
+model StartupEvent {
+  id        Int      @id @default(autoincrement())
+  event     String?
+  timestamp BigInt?
+
+  @@map("startup_events")
+}
+
+// ============================================================================
+// System Settings
+// ============================================================================
+
+model SystemSettings {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}
+
+// ============================================================================
+// Agent Logging (Phase-0 §5.3)
+// ============================================================================
+
+model AgentLog {
+  id        Int      @id @default(autoincrement())
+  agentId   String   @map("agent_id")
+  agentName String?  @map("agent_name")
+  timestamp DateTime @default(now())
+  provider  String?
+  model     String?
+  input     String?
+  success   Boolean
+  error     String?
+
+  actions   AgentActionLog[]
+
+  @@map("agent_logs")
+}
+
+model AgentActionLog {
+  id        Int      @id @default(autoincrement())
+  logId     Int      @map("log_id")
+  type      String
+  entityId  String   @map("entity_id")
+  entityType String? @map("entity_type")
+  before    String?
+  after     String?
+
+  log       AgentLog @relation(fields: [logId], references: [id], onDelete: Cascade)
+
+  @@map("agent_action_logs")
+}

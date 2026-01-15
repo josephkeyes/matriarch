@@ -14,7 +14,7 @@ export default defineConfig({
                 vite: {
                     build: {
                         rollupOptions: {
-                            external: ['@libsql/client'],
+                            external: ['@libsql/client', '@prisma/client'],
                         },
                     },
                 },

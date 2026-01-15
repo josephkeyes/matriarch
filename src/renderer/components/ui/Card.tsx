@@ -24,7 +24,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
                 ref={ref}
                 className={cn(
                     // Base styles
-                    'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5',
+                    'bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-xl p-5',
 
                     // Variant styles
                     {
@@ -93,7 +93,7 @@ export function CardTitle({
 
     return (
         <h3 className={cn(
-            'font-bold text-slate-900 dark:text-white mb-1 transition-colors',
+            'font-bold text-slate-900 dark:text-text-main-dark mb-1 transition-colors',
             hoverClasses[hoverColor]
         )}>
             {children}
@@ -131,7 +131,7 @@ export function CardFooter({
     }
 
     return (
-        <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400">
+        <div className="pt-4 border-t border-slate-100 dark:border-border-dark flex items-center justify-between text-[10px] text-slate-400">
             <span className="flex items-center">
                 <span className="material-icons-round text-[12px] mr-1">history</span>
                 {timestamp}

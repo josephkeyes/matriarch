@@ -51,7 +51,7 @@ export function Sidebar({
         )}>
             {/* Header */}
             <div className="p-4 flex items-center justify-between border-b border-slate-100 dark:border-border-dark/50">
-                <h2 className="font-semibold text-sm tracking-wide text-slate-900 dark:text-white">
+                <h2 className="font-semibold text-sm tracking-wide text-slate-900 dark:text-text-main-dark">
                     {title}
                 </h2>
                 {collapsible && (

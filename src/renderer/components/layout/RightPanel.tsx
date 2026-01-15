@@ -27,9 +27,9 @@ export function RightPanel({
     return (
         <aside className={cn(
             widthClasses[width],
-            'border-l border-slate-200 dark:border-slate-800',
+            'border-l border-slate-200 dark:border-border-dark',
             'flex flex-col',
-            'bg-white dark:bg-slate-900',
+            'bg-white dark:bg-surface-dark',
             'overflow-hidden',
             className
         )}>
@@ -51,7 +51,7 @@ export function InsightsSection({
     children: ReactNode
 }) {
     return (
-        <div className="flex-1 relative bg-slate-50 dark:bg-slate-950 p-6 flex flex-col">
+        <div className="flex-1 relative bg-slate-50 dark:bg-background-dark p-6 flex flex-col">
             <div className="flex items-center justify-between mb-6">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                     {title}
@@ -85,7 +85,7 @@ export function TasksSection({
     children: ReactNode
 }) {
     return (
-        <div className="h-[45%] border-t border-slate-200 dark:border-slate-800 p-6 flex flex-col bg-white dark:bg-slate-900">
+        <div className="h-[45%] border-t border-slate-200 dark:border-border-dark p-6 flex flex-col bg-white dark:bg-surface-dark">
             <div className="flex items-center justify-between mb-4">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                     {title}
@@ -118,7 +118,7 @@ export function ActivitySection({
     const maxValue = Math.max(...data, 1)
 
     return (
-        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-border-dark">
             <div className="flex items-center justify-between mb-2">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                     {title}
@@ -166,7 +166,7 @@ export function TaskItem({
                 'w-4 h-4 rounded border flex items-center justify-center transition-colors',
                 completed
                     ? 'bg-primary border-primary'
-                    : 'border-slate-300 dark:border-slate-700'
+                    : 'border-slate-300 dark:border-border-dark'
             )}>
                 {completed && (
                     <span className="material-icons-round text-white text-[10px]">check</span>
@@ -176,7 +176,7 @@ export function TaskItem({
                 'text-sm transition-colors',
                 completed
                     ? 'text-slate-400 line-through'
-                    : 'text-slate-600 dark:text-slate-400 group-hover:text-primary'
+                    : 'text-slate-600 dark:text-text-secondary-dark group-hover:text-primary'
             )}>
                 {label}
             </span>

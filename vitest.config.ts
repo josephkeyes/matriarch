@@ -10,5 +10,16 @@ export default defineConfig({
             '@': path.resolve(__dirname, './src'),
         },
         exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**'],
+        coverage: {
+            provider: 'istanbul',
+            reporter: ['text', 'html', 'lcov'],
+            reportsDirectory: './coverage',
+            include: ['src/**/*.{ts,tsx}'],
+            exclude: [
+                'src/**/*.test.{ts,tsx}',
+                'src/**/*.d.ts',
+                'src/test/**',
+            ],
+        },
     },
 })

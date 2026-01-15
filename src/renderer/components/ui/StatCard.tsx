@@ -27,8 +27,8 @@ export const StatCard = forwardRef<HTMLDivElement, StatCardProps>(
             <div
                 ref={ref}
                 className={cn(
-                    'bg-white dark:bg-slate-900 p-4 rounded-xl',
-                    'border border-slate-200 dark:border-slate-800',
+                    'bg-white dark:bg-surface-dark p-4 rounded-xl',
+                    'border border-slate-200 dark:border-border-dark',
                     className
                 )}
                 {...props}
@@ -36,7 +36,7 @@ export const StatCard = forwardRef<HTMLDivElement, StatCardProps>(
                 <span className="text-[10px] text-slate-400 font-bold block mb-1 uppercase">
                     {label}
                 </span>
-                <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                <span className="text-2xl font-bold text-slate-900 dark:text-text-main-dark">
                     {value}
                 </span>
                 {change && (

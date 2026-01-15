@@ -3,6 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DatabaseClient } from './database/DatabaseClient'
 import { AgentOrchestrator } from './agents/AgentOrchestrator'
+import { registerAllHandlers } from './api'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -69,9 +70,11 @@ app.on('activate', () => {
 app.whenReady().then(async () => {
     console.log('App ready, initializing systems...')
 
-    // Initialize Database
+    // Register IPC API handlers first (before any windows are created)
+    registerAllHandlers()
     try {
         const db = DatabaseClient.getInstance()
+        await db.initialize()
         console.log('Database initialized successfully')
     } catch (error) {
         console.error('Failed to initialize database:', error)

@@ -11,20 +11,21 @@ export default {
             colors: {
                 // Primary accent
                 primary: "#ff0091",
+                success: "#00ff88", // Neon Green accent
 
                 // Light mode backgrounds
                 "background-light": "#f8f5f7",
 
                 // Dark mode backgrounds
-                "background-dark": "#181A1C",
-                "surface-dark": "#222528",
+                "background-dark": "#181A1C", // Dark charcoal
+                "surface-dark": "#222528",    // Lighter gray surface
 
                 // Dark mode borders
-                "border-dark": "#3A3E42",
+                "border-dark": "#3A3E42",     // Cool gray
 
                 // Dark mode text
                 "text-main-dark": "#EFEFEF",
-                "text-secondary-dark": "#B0B3B6",
+                "text-secondary-dark": "#B0B3B6", // Muted text
 
                 // Accent colors
                 accent: {
