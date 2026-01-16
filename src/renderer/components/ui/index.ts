@@ -25,3 +25,6 @@ export type { StatCardProps } from './StatCard'
 
 export { SettingsToggle } from './SettingsToggle'
 export type { SettingsToggleProps } from './SettingsToggle'
+
+export { CommandPalette } from './CommandPalette'
+export { CommandPaletteButton } from './CommandPaletteButton'

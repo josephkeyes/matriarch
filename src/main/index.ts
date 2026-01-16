@@ -3,6 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DatabaseClient } from './database/DatabaseClient'
 import { AgentOrchestrator } from './agents/AgentOrchestrator'
+import { CommandRegistry, HotkeyManager } from './commands'
 import { registerAllHandlers } from './api'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -67,6 +68,11 @@ app.on('activate', () => {
     }
 })
 
+// Clean up global shortcuts when app quits
+app.on('will-quit', () => {
+    HotkeyManager.getInstance().unregisterAll()
+})
+
 app.whenReady().then(async () => {
     console.log('App ready, initializing systems...')
 
@@ -86,6 +92,24 @@ app.whenReady().then(async () => {
         console.log('Agent Orchestrator initialized')
     } catch (error) {
         console.error('Failed to initialize orchestrator:', error)
+    }
+
+    // Initialize Command Registry (seeds built-in commands)
+    try {
+        const commandRegistry = CommandRegistry.getInstance()
+        await commandRegistry.initialize()
+        console.log('Command Registry initialized')
+    } catch (error) {
+        console.error('Failed to initialize command registry:', error)
+    }
+
+    // Initialize Hotkey Manager (registers global shortcuts)
+    try {
+        const hotkeyManager = HotkeyManager.getInstance()
+        await hotkeyManager.initialize()
+        console.log('Hotkey Manager initialized')
+    } catch (error) {
+        console.error('Failed to initialize hotkey manager:', error)
     }
 
     createWindow()

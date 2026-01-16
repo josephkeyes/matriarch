@@ -54,6 +54,19 @@ const matriarch: MatriarchApi = {
             ipcRenderer.invoke(CHANNELS.AI_PROVIDERS.CHECK_AVAILABILITY, providerId),
         getModels: (providerId: string) => ipcRenderer.invoke(CHANNELS.AI_PROVIDERS.GET_MODELS, providerId),
     },
+    commands: {
+        list: (filter) => ipcRenderer.invoke(CHANNELS.COMMANDS.LIST, filter),
+        get: (id) => ipcRenderer.invoke(CHANNELS.COMMANDS.GET, id),
+        create: (data) => ipcRenderer.invoke(CHANNELS.COMMANDS.CREATE, data),
+        update: (id, data) => ipcRenderer.invoke(CHANNELS.COMMANDS.UPDATE, id, data),
+        delete: (id) => ipcRenderer.invoke(CHANNELS.COMMANDS.DELETE, id),
+        execute: (id, context) => ipcRenderer.invoke(CHANNELS.COMMANDS.EXECUTE, id, context),
+        addHotkey: (commandId, accelerator, isGlobal) =>
+            ipcRenderer.invoke(CHANNELS.COMMANDS.ADD_HOTKEY, commandId, accelerator, isGlobal),
+        removeHotkey: (hotkeyId) => ipcRenderer.invoke(CHANNELS.COMMANDS.REMOVE_HOTKEY, hotkeyId),
+        updateHotkey: (hotkeyId, accelerator) =>
+            ipcRenderer.invoke(CHANNELS.COMMANDS.UPDATE_HOTKEY, hotkeyId, accelerator),
+    },
 }
 
 // Expose the typed API to the renderer

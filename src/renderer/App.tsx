@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { ThemeProvider, useThemeContext } from './contexts/ThemeContext'
 import { ContextMenuProvider, useContextMenu } from './contexts/ContextMenuContext'
+import { CommandPaletteProvider, useCommandPalette } from './contexts/CommandPaletteContext'
 import {
     AppShell,
     Header,
@@ -20,7 +21,9 @@ import {
     Tag,
     StatCard,
     FloatingActionButton,
-    Modal
+    Modal,
+    CommandPalette,
+    CommandPaletteButton
 } from './components/ui'
 import { NoteView } from './components/NoteView'
 import { SettingsView } from './components/SettingsView'
@@ -60,6 +63,41 @@ function AppContent() {
     useEffect(() => {
         loadCollections()
     }, [])
+
+    // Listen for command palette actions (dispatched by CommandPaletteProvider)
+    useEffect(() => {
+        const handleNavigate = (e: CustomEvent<{ view: string }>) => {
+            if (e.detail.view === 'dashboard') {
+                handleNavigateToDashboard()
+            } else if (e.detail.view === 'settings') {
+                handleNavigateToSettings()
+            }
+        }
+        const handleToggleTheme = () => toggleTheme()
+        const handleToggleLeftSidebar = () => setIsLeftSidebarCollapsed(prev => !prev)
+        const handleToggleRightSidebar = () => setIsRightSidebarCollapsed(prev => !prev)
+        const handleCreateCollection = () => setIsCreateModalOpen(true)
+        const handleCreateNote = () => {
+            // For now, open collection modal - could enhance to create note directly
+            setIsCreateModalOpen(true)
+        }
+
+        window.addEventListener('matriarch:navigate', handleNavigate as EventListener)
+        window.addEventListener('matriarch:toggle-theme', handleToggleTheme)
+        window.addEventListener('matriarch:toggle-left-sidebar', handleToggleLeftSidebar)
+        window.addEventListener('matriarch:toggle-right-sidebar', handleToggleRightSidebar)
+        window.addEventListener('matriarch:create-collection', handleCreateCollection)
+        window.addEventListener('matriarch:create-note', handleCreateNote)
+
+        return () => {
+            window.removeEventListener('matriarch:navigate', handleNavigate as EventListener)
+            window.removeEventListener('matriarch:toggle-theme', handleToggleTheme)
+            window.removeEventListener('matriarch:toggle-left-sidebar', handleToggleLeftSidebar)
+            window.removeEventListener('matriarch:toggle-right-sidebar', handleToggleRightSidebar)
+            window.removeEventListener('matriarch:create-collection', handleCreateCollection)
+            window.removeEventListener('matriarch:create-note', handleCreateNote)
+        }
+    }, [toggleTheme])
 
     const loadCollections = async () => {
         if (window.matriarch?.collections) {
@@ -229,6 +267,11 @@ function AppContent() {
                     onCollapse={() => setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed)}
                     isCollapsed={isLeftSidebarCollapsed}
                 >
+                    {/* Command Palette Button */}
+                    <div className={isLeftSidebarCollapsed ? "px-2 mb-2" : "px-2 mb-4"}>
+                        <CommandPaletteButton collapsed={isLeftSidebarCollapsed} />
+                    </div>
+
                     <div className={isLeftSidebarCollapsed ? "px-2 mb-4 flex justify-center" : "px-4 mb-4"}>
                         <Button
                             variant="secondary"
@@ -473,10 +516,47 @@ function AppContent() {
 }
 
 function App() {
+    // Command execution callback for handling navigation and toggle commands
+    const handleCommandExecuted = useCallback((commandId: string, output: unknown) => {
+        const action = output as { action?: string; route?: string; params?: { action?: string } }
+
+        if (action?.action === 'navigate' && action?.route) {
+            // Handle navigation commands
+            if (action.route === 'dashboard') {
+                window.dispatchEvent(new CustomEvent('matriarch:navigate', { detail: { view: 'dashboard' } }))
+            } else if (action.route === 'settings') {
+                window.dispatchEvent(new CustomEvent('matriarch:navigate', { detail: { view: 'settings' } }))
+            }
+        } else if (action?.action === 'toggle' || action?.action === 'execute') {
+            const param = action?.params?.action
+            if (param === 'toggle-theme') {
+                window.dispatchEvent(new CustomEvent('matriarch:toggle-theme'))
+            } else if (param === 'toggle-left-sidebar') {
+                window.dispatchEvent(new CustomEvent('matriarch:toggle-left-sidebar'))
+            } else if (param === 'toggle-right-sidebar') {
+                window.dispatchEvent(new CustomEvent('matriarch:toggle-right-sidebar'))
+            } else if (param === 'create-collection') {
+                window.dispatchEvent(new CustomEvent('matriarch:create-collection'))
+            } else if (param === 'create-note') {
+                window.dispatchEvent(new CustomEvent('matriarch:create-note'))
+            }
+        }
+    }, [])
+
+    const handleNavigateToSettings = useCallback(() => {
+        window.dispatchEvent(new CustomEvent('matriarch:navigate', { detail: { view: 'settings' } }))
+    }, [])
+
     return (
         <ThemeProvider>
             <ContextMenuProvider>
-                <AppContent />
+                <CommandPaletteProvider
+                    onNavigateToSettings={handleNavigateToSettings}
+                    onCommandExecuted={handleCommandExecuted}
+                >
+                    <AppContent />
+                    <CommandPalette />
+                </CommandPaletteProvider>
             </ContextMenuProvider>
         </ThemeProvider>
     )

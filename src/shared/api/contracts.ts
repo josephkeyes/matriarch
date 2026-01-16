@@ -193,6 +193,7 @@ export interface MatriarchApi {
     collections: CollectionsApi
     notes: NotesApi
     aiProviders: AIProvidersApi
+    commands: CommandsApi
 }
 
 // ============================================================================
@@ -233,4 +234,82 @@ export interface NotesApi {
     update(id: string, data: UpdateNoteDTO): Promise<Note>
     /** Delete a note */
     delete(id: string): Promise<void>
+}
+
+// ============================================================================
+// Commands API (Command Palette Feature)
+// ============================================================================
+
+export type CommandType = 'navigation' | 'crud' | 'application' | 'agent'
+export type CommandActionType = 'navigate' | 'execute' | 'toggle' | 'agent-execute'
+export type CommandSource = 'system' | 'user' | 'plugin'
+
+export interface CommandHotkey {
+    id: string
+    accelerator: string
+    isGlobal: boolean
+}
+
+export interface Command {
+    id: string
+    name: string
+    description?: string
+    type: CommandType
+    actionType: CommandActionType
+    actionPayload?: Record<string, unknown>
+    enabled: boolean
+    isBuiltIn: boolean
+    source: CommandSource
+    category?: string
+    hotkeys: CommandHotkey[]
+}
+
+export interface CreateCommandDTO {
+    name: string
+    description?: string
+    type: CommandType
+    actionType: CommandActionType
+    actionPayload?: Record<string, unknown>
+    category?: string
+}
+
+export interface UpdateCommandDTO {
+    name?: string
+    description?: string
+    enabled?: boolean
+    actionPayload?: Record<string, unknown>
+    category?: string
+}
+
+export interface CommandExecutionContext {
+    noteId?: string
+    selectedText?: string
+    params?: Record<string, unknown>
+}
+
+export interface CommandExecutionResult {
+    success: boolean
+    error?: string
+    output?: unknown
+}
+
+export interface CommandsApi {
+    /** List all commands, optionally filtered */
+    list(filter?: { type?: CommandType; enabled?: boolean }): Promise<Command[]>
+    /** Get a single command by ID */
+    get(id: string): Promise<Command | null>
+    /** Create a new user command */
+    create(data: CreateCommandDTO): Promise<Command>
+    /** Update an existing command */
+    update(id: string, data: UpdateCommandDTO): Promise<Command>
+    /** Delete a command (user commands only) */
+    delete(id: string): Promise<void>
+    /** Execute a command */
+    execute(id: string, context?: CommandExecutionContext): Promise<CommandExecutionResult>
+    /** Add a hotkey to a command */
+    addHotkey(commandId: string, accelerator: string, isGlobal?: boolean): Promise<CommandHotkey>
+    /** Remove a hotkey */
+    removeHotkey(hotkeyId: string): Promise<void>
+    /** Update a hotkey's accelerator */
+    updateHotkey(hotkeyId: string, accelerator: string): Promise<CommandHotkey>
 }
