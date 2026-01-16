@@ -8,6 +8,8 @@ import { SettingsView } from './components/SettingsView'
 import { DashboardView } from './components/DashboardView'
 import { useAppNavigation } from './hooks/useAppNavigation'
 import { useCollectionManager } from './hooks/useCollectionManager'
+import { useCommandExecution } from './hooks/useCommandExecution'
+import { LegacyEventListeners } from './components/LegacyEventListeners'
 
 function AppContent() {
     const {
@@ -136,6 +138,12 @@ function AppContent() {
                 </div>
             </Modal>
 
+            {/* Listeners for legacy/bridge events */}
+            <LegacyEventListeners
+                onCreateCollection={() => setIsCreateModalOpen(true)}
+                onCreateNote={handleCreateNote}
+            />
+
             <Modal
                 isOpen={isRenameModalOpen}
                 onClose={() => setIsRenameModalOpen(false)}
@@ -168,47 +176,57 @@ function AppContent() {
     )
 }
 
-function App() {
-    // Command execution callback for handling navigation and toggle commands
-    const handleCommandExecuted = useCallback((commandId: string, output: unknown) => {
-        const action = output as { action?: string; route?: string; params?: { action?: string } }
+// Main App Component that uses the hook
+function AppRoot() {
+    const {
+        navigateToDashboard,
+        navigateToSettings,
+        navigateToNote,
+    } = useAppNavigation()
 
-        if (action?.action === 'navigate' && action?.route) {
-            // Handle navigation commands
-            if (action.route === 'dashboard') {
-                window.dispatchEvent(new CustomEvent('matriarch:navigate', { detail: { view: 'dashboard' } }))
-            } else if (action.route === 'settings') {
-                window.dispatchEvent(new CustomEvent('matriarch:navigate', { detail: { view: 'settings' } }))
-            }
-        } else if (action?.action === 'toggle' || action?.action === 'execute') {
-            const param = action?.params?.action
-            if (param === 'toggle-theme') {
-                window.dispatchEvent(new CustomEvent('matriarch:toggle-theme'))
-            } else if (param === 'toggle-left-sidebar') {
-                window.dispatchEvent(new CustomEvent('matriarch:toggle-left-sidebar'))
-            } else if (param === 'toggle-right-sidebar') {
-                window.dispatchEvent(new CustomEvent('matriarch:toggle-right-sidebar'))
-            } else if (param === 'create-collection') {
-                window.dispatchEvent(new CustomEvent('matriarch:create-collection'))
-            } else if (param === 'create-note') {
-                window.dispatchEvent(new CustomEvent('matriarch:create-note'))
-            }
-        }
-    }, [])
+    const {
+        createCollection,
+        loadCollections
+    } = useCollectionManager()
+
+    // Command execution callback
+    // We pass handlers directly from our hooks
+    const handleCommandExecuted = useCommandExecution(
+        (id, noteId) => {
+            if (id === 'dashboard') navigateToDashboard()
+            else if (id === 'settings') navigateToSettings()
+            else if (id === 'note' && noteId) navigateToNote(noteId)
+        },
+        () => window.dispatchEvent(new CustomEvent('matriarch:create-collection')), // Temporary bridge until we lift state
+        () => window.dispatchEvent(new CustomEvent('matriarch:create-note'))      // Temporary bridge
+    )
+
+    // Note on CREATE handlers:
+    // Since createCollection/createNote depend on Modal state which is inside AppContent,
+    // we can't easily execute them at this level without lifting state.
+    // For this refactor, we will keep the window events ONLY for the complex modal triggers 
+    // (Create Collection, Create Note) but use direct context for Theme/Sidebar/Nav.
+    // Ideally, we should lift modal state to a GlobalModalContext.
 
     const handleNavigateToSettings = useCallback(() => {
-        window.dispatchEvent(new CustomEvent('matriarch:navigate', { detail: { view: 'settings' } }))
-    }, [])
+        navigateToSettings()
+    }, [navigateToSettings])
 
     return (
+        <CommandPaletteProvider
+            onNavigateToSettings={handleNavigateToSettings}
+            onCommandExecuted={handleCommandExecuted}
+        >
+            <AppContent />
+            <CommandPalette />
+        </CommandPaletteProvider>
+    )
+}
+
+function App() {
+    return (
         <AppProviders>
-            <CommandPaletteProvider
-                onNavigateToSettings={handleNavigateToSettings}
-                onCommandExecuted={handleCommandExecuted}
-            >
-                <AppContent />
-                <CommandPalette />
-            </CommandPaletteProvider>
+            <AppRoot />
         </AppProviders>
     )
 }

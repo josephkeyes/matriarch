@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useThemeContext } from '../../contexts/ThemeContext'
 import { useContextMenu } from '../../contexts/ContextMenuContext'
+import { useLayoutContext } from '../../contexts/LayoutContext'
 import { useAppNavigation, ViewType } from '../../hooks/useAppNavigation'
 import {
     AppShell,
@@ -62,8 +63,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     const { toggleTheme, resolvedTheme } = useThemeContext()
     const { showContextMenu } = useContextMenu()
 
-    const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false)
-    const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false)
+    const {
+        isLeftSidebarCollapsed,
+        toggleLeftSidebar,
+        isRightSidebarCollapsed,
+        toggleRightSidebar
+    } = useLayoutContext()
 
     // Context Menu Handlers
     const handleCollectionsHeaderContextMenu = (e: React.MouseEvent) => {
@@ -102,19 +107,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         onNavigate(id)
     }
 
-    // Listen for toggle events that might come from Command Palette
-    React.useEffect(() => {
-        const handleToggleLeftSidebar = () => setIsLeftSidebarCollapsed(prev => !prev)
-        const handleToggleRightSidebar = () => setIsRightSidebarCollapsed(prev => !prev)
-
-        window.addEventListener('matriarch:toggle-left-sidebar', handleToggleLeftSidebar)
-        window.addEventListener('matriarch:toggle-right-sidebar', handleToggleRightSidebar)
-        return () => {
-            window.removeEventListener('matriarch:toggle-left-sidebar', handleToggleLeftSidebar)
-            window.removeEventListener('matriarch:toggle-right-sidebar', handleToggleRightSidebar)
-        }
-    }, [])
-
     return (
         <AppShell
             header={
@@ -140,7 +132,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             sidebar={
                 <Sidebar
                     title="MAIN NAVIGATION"
-                    onCollapse={() => setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed)}
+                    onCollapse={toggleLeftSidebar}
                     isCollapsed={isLeftSidebarCollapsed}
                 >
                     <div className={isLeftSidebarCollapsed ? "px-2 mb-2" : "px-2 mb-4"}>
@@ -232,7 +224,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             }
             rightPanel={
                 <RightPanel
-                    onCollapse={() => setIsRightSidebarCollapsed(!isRightSidebarCollapsed)}
+                    onCollapse={toggleRightSidebar}
                     isCollapsed={isRightSidebarCollapsed}
                 >
                     <InsightsSection>
