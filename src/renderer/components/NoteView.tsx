@@ -16,6 +16,7 @@ import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { CodeNode } from '@lexical/code';
 import { ListNode, ListItemNode } from '@lexical/list';
 import { LinkNode } from '@lexical/link';
+import { FloatingToolbarPlugin } from './editor/FloatingToolbarPlugin';
 
 // Theme configuration
 const theme = {
@@ -228,6 +229,7 @@ export function NoteView({ noteId, onNoteUpdate }: NoteViewProps) {
                         <ListPlugin />
                         <LinkPlugin />
                         <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
+                        <FloatingToolbarPlugin />
                     </LexicalComposer>
                 </div>
             </div>
