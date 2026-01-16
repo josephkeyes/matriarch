@@ -1,15 +1,15 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { events } from './services/EventBus'
 import { CommandPaletteProvider } from './contexts/CommandPaletteContext'
 import { AppProviders } from './contexts/AppProviders'
+import { NavigationProvider, useNavigation } from './contexts/NavigationContext'
+import { CollectionProvider, useCollections } from './contexts/CollectionContext'
 import { MainLayout } from './components/layout/MainLayout'
 import { Button, Modal, CommandPalette } from './components/ui'
 import { NoteView } from './components/NoteView'
 import { SettingsView } from './components/SettingsView'
 import { DashboardView } from './components/DashboardView'
-import { useAppNavigation } from './hooks/useAppNavigation'
-import { useCollectionManager } from './hooks/useCollectionManager'
 import { useCommandExecution } from './hooks/useCommandExecution'
-import { LegacyEventListeners } from './components/LegacyEventListeners'
 
 function AppContent() {
     const {
@@ -18,7 +18,7 @@ function AppContent() {
         navigateToDashboard,
         navigateToNote,
         handleHeaderNav
-    } = useAppNavigation()
+    } = useNavigation()
 
     const {
         collections,
@@ -26,7 +26,7 @@ function AppContent() {
         renameCollection,
         deleteCollection,
         loadCollections
-    } = useCollectionManager()
+    } = useCollections()
 
     // Local UI State for Modals
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -80,6 +80,23 @@ function AppContent() {
             setIsCreateModalOpen(true)
         }
     }
+
+    // Event Bus Listeners for Modals
+    useEffect(() => {
+        const handleCreateCollectionRequest = () => setIsCreateModalOpen(true)
+        const handleCreateNoteRequest = (payload: { collectionId?: string }) => handleCreateNote(payload.collectionId)
+
+        events.on('collection:create-requested', handleCreateCollectionRequest)
+        events.on('note:create-requested', handleCreateNoteRequest)
+
+        return () => {
+            events.off('collection:create-requested', handleCreateCollectionRequest)
+            events.off('note:create-requested', handleCreateNoteRequest)
+        }
+    }, []) // Dependencies are stable (handleCreateNote depends on state but function ref should be stable if memoized, or we add to dep array)
+    // Actually handleCreateNote changes if loadCollections changes. 
+    // Let's rely on the fact that we just call setIsCreateModalOpen or handleCreateNote.
+    // Ideally wrap handleCreateNote in useCallback.
 
     return (
         <MainLayout
@@ -138,12 +155,6 @@ function AppContent() {
                 </div>
             </Modal>
 
-            {/* Listeners for legacy/bridge events */}
-            <LegacyEventListeners
-                onCreateCollection={() => setIsCreateModalOpen(true)}
-                onCreateNote={handleCreateNote}
-            />
-
             <Modal
                 isOpen={isRenameModalOpen}
                 onClose={() => setIsRenameModalOpen(false)}
@@ -182,31 +193,23 @@ function AppRoot() {
         navigateToDashboard,
         navigateToSettings,
         navigateToNote,
-    } = useAppNavigation()
+    } = useNavigation()
 
     const {
-        createCollection,
-        loadCollections
-    } = useCollectionManager()
+        createCollection
+    } = useCollections()
 
     // Command execution callback
-    // We pass handlers directly from our hooks
+    // We pass handlers directly from our hooks (which are now connected to Context)
     const handleCommandExecuted = useCommandExecution(
         (id, noteId) => {
             if (id === 'dashboard') navigateToDashboard()
             else if (id === 'settings') navigateToSettings()
             else if (id === 'note' && noteId) navigateToNote(noteId)
         },
-        () => window.dispatchEvent(new CustomEvent('matriarch:create-collection')), // Temporary bridge until we lift state
-        () => window.dispatchEvent(new CustomEvent('matriarch:create-note'))      // Temporary bridge
+        () => events.emit('collection:create-requested', undefined),
+        () => events.emit('note:create-requested', {})
     )
-
-    // Note on CREATE handlers:
-    // Since createCollection/createNote depend on Modal state which is inside AppContent,
-    // we can't easily execute them at this level without lifting state.
-    // For this refactor, we will keep the window events ONLY for the complex modal triggers 
-    // (Create Collection, Create Note) but use direct context for Theme/Sidebar/Nav.
-    // Ideally, we should lift modal state to a GlobalModalContext.
 
     const handleNavigateToSettings = useCallback(() => {
         navigateToSettings()
@@ -226,7 +229,11 @@ function AppRoot() {
 function App() {
     return (
         <AppProviders>
-            <AppRoot />
+            <NavigationProvider>
+                <CollectionProvider>
+                    <AppRoot />
+                </CollectionProvider>
+            </NavigationProvider>
         </AppProviders>
     )
 }

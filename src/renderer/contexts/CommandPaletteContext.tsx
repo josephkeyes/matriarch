@@ -77,8 +77,10 @@ export function CommandPaletteProvider({
 
             const result = await window.matriarch.commands.execute(id, context)
 
-            // Close palette after execution
-            close()
+            // Close palette after execution, UNLESS the command is to open it
+            if (id !== 'app.command-palette') {
+                close()
+            }
 
             // Notify parent of execution result for handling navigation/toggles
             if (result.success && result.output && onCommandExecuted) {
@@ -136,8 +138,8 @@ export function CommandPaletteProvider({
     // Handle keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            // 1. Hardcoded fallback for Command Palette (in case commands aren't loaded yet)
-            if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'p') {
+            // 1. Hardcoded fallback for Command Palette (using code for better layout support)
+            if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.code === 'KeyP' || e.key.toLowerCase() === 'p')) {
                 e.preventDefault()
                 toggle()
                 return
@@ -159,7 +161,9 @@ export function CommandPaletteProvider({
                 // Check defined hotkeys
                 if (cmd.hotkeys && cmd.hotkeys.length > 0) {
                     for (const hotkey of cmd.hotkeys) {
-                        if (hotkey.isGlobal) continue // Global hotkeys handled by main process
+                        // Allow Command Palette to be triggered locally even if marked global (it's the app activator)
+                        if (hotkey.isGlobal && cmd.id !== 'app.command-palette') continue
+
                         if (matchesHotkey(e, hotkey.accelerator)) {
                             trigger()
                             return

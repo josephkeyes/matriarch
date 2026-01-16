@@ -1470,6 +1470,7 @@ const _CommandRegistry = class _CommandRegistry {
    * Map a Prisma command to a CommandDefinition.
    */
   mapCommandToDefinition(command) {
+    var _a2;
     let parsedPayload;
     if (command.actionPayload) {
       try {
@@ -1493,7 +1494,8 @@ const _CommandRegistry = class _CommandRegistry {
         id: h.id,
         accelerator: h.accelerator,
         isGlobal: h.isGlobal
-      }))
+      })),
+      defaultHotkey: command.isBuiltIn ? (_a2 = BUILT_IN_COMMANDS.find((b) => b.id === command.id)) == null ? void 0 : _a2.defaultHotkey : void 0
     };
   }
 };
