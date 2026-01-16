@@ -26,18 +26,45 @@ export interface SystemApi {
 // Settings API
 // ============================================================================
 
+export interface GeneralSettings {
+    /** Theme preference */
+    theme: 'light' | 'dark' | 'system'
+    /** UI language code */
+    language: string
+    /** Whether to start the app minimized */
+    startMinimized: boolean
+}
+
 export interface AISettings {
+    /** Default AI provider (e.g., 'ollama', 'openai') */
     defaultProvider: string
+    /** Default model ID to use */
     defaultModel: string
+    /** Optional base URL for the provider */
     providerBaseUrl?: string
+    /** Maximum tokens for AI responses */
+    maxTokens: number
+    /** Temperature for AI responses (0-1) */
+    temperature: number
+    /** Auto-generate note summaries after creation */
+    autoNoteSummary: boolean
+    /** Background relationship mapping enabled */
+    backgroundMapping: boolean
 }
 
 export interface SettingsApi {
+    /** Get general settings */
+    getGeneral(): Promise<GeneralSettings>
+    /** Update general settings (partial updates allowed) */
+    updateGeneral(settings: Partial<GeneralSettings>): Promise<void>
     /** Get current AI settings */
     getAI(): Promise<AISettings>
     /** Update AI settings (partial updates allowed) */
     updateAI(settings: Partial<AISettings>): Promise<void>
+    /** Reset settings to defaults */
+    resetToDefaults(category?: 'general' | 'ai'): Promise<void>
 }
+
 
 // ============================================================================
 // Agents API

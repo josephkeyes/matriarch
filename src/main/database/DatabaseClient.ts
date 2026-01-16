@@ -54,6 +54,14 @@ export class DatabaseClient {
             `)
 
             await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS system_settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL,
+                    updated_at DATETIME NOT NULL DEFAULT (datetime('now'))
+                )
+            `)
+
+            await this.prisma.$executeRawUnsafe(`
                 CREATE TABLE IF NOT EXISTS notes (
                     id TEXT PRIMARY KEY,
                     title TEXT NOT NULL,

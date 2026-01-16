@@ -18,8 +18,11 @@ const matriarch: MatriarchApi = {
         health: () => ipcRenderer.invoke(CHANNELS.SYSTEM.HEALTH),
     },
     settings: {
+        getGeneral: () => ipcRenderer.invoke(CHANNELS.SETTINGS.GET_GENERAL),
+        updateGeneral: (settings) => ipcRenderer.invoke(CHANNELS.SETTINGS.UPDATE_GENERAL, settings),
         getAI: () => ipcRenderer.invoke(CHANNELS.SETTINGS.GET_AI),
         updateAI: (settings) => ipcRenderer.invoke(CHANNELS.SETTINGS.UPDATE_AI, settings),
+        resetToDefaults: (category) => ipcRenderer.invoke(CHANNELS.SETTINGS.RESET_DEFAULTS, category),
     },
     agents: {
         list: () => ipcRenderer.invoke(CHANNELS.AGENTS.LIST),
