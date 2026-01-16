@@ -145,6 +145,40 @@ export interface CollectionsApi {
 }
 
 // ============================================================================
+// AI Providers API
+// ============================================================================
+
+export interface AIProviderInfo {
+    id: string
+    name: string
+    description: string
+    enabled: boolean
+    available: boolean
+    config: Record<string, unknown> | null
+}
+
+export interface AvailabilityResult {
+    available: boolean
+    error?: string
+    models?: string[]
+}
+
+export interface AIProvidersApi {
+    /** List all supported providers with current status */
+    list(): Promise<AIProviderInfo[]>
+    /** Get configuration for a specific provider */
+    getConfig(providerId: string): Promise<Record<string, unknown> | null>
+    /** Enable or disable a provider */
+    setEnabled(providerId: string, enabled: boolean): Promise<void>
+    /** Update configuration for a provider */
+    updateConfig(providerId: string, config: Record<string, unknown>): Promise<void>
+    /** Check if a provider is available */
+    checkAvailability(providerId: string): Promise<AvailabilityResult>
+    /** Get available models for a provider (e.g., Ollama) */
+    getModels(providerId: string): Promise<string[]>
+}
+
+// ============================================================================
 // Combined API Facade
 // ============================================================================
 
@@ -158,6 +192,7 @@ export interface MatriarchApi {
     agents: AgentsApi
     collections: CollectionsApi
     notes: NotesApi
+    aiProviders: AIProvidersApi
 }
 
 // ============================================================================

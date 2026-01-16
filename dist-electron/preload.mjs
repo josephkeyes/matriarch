@@ -27,6 +27,14 @@ const CHANNELS = {
     READ: "notes:read",
     UPDATE: "notes:update",
     DELETE: "notes:delete"
+  },
+  AI_PROVIDERS: {
+    LIST: "ai-providers:list",
+    GET_CONFIG: "ai-providers:get-config",
+    SET_ENABLED: "ai-providers:set-enabled",
+    UPDATE_CONFIG: "ai-providers:update-config",
+    CHECK_AVAILABILITY: "ai-providers:check-availability",
+    GET_MODELS: "ai-providers:get-models"
   }
   // Future channels:
   // TASKS: { CREATE: 'tasks:create', ... }
@@ -58,6 +66,14 @@ const matriarch = {
     read: (id) => electron.ipcRenderer.invoke(CHANNELS.NOTES.READ, id),
     update: (id, data) => electron.ipcRenderer.invoke(CHANNELS.NOTES.UPDATE, id, data),
     delete: (id) => electron.ipcRenderer.invoke(CHANNELS.NOTES.DELETE, id)
+  },
+  aiProviders: {
+    list: () => electron.ipcRenderer.invoke(CHANNELS.AI_PROVIDERS.LIST),
+    getConfig: (providerId) => electron.ipcRenderer.invoke(CHANNELS.AI_PROVIDERS.GET_CONFIG, providerId),
+    setEnabled: (providerId, enabled) => electron.ipcRenderer.invoke(CHANNELS.AI_PROVIDERS.SET_ENABLED, providerId, enabled),
+    updateConfig: (providerId, config) => electron.ipcRenderer.invoke(CHANNELS.AI_PROVIDERS.UPDATE_CONFIG, providerId, config),
+    checkAvailability: (providerId) => electron.ipcRenderer.invoke(CHANNELS.AI_PROVIDERS.CHECK_AVAILABILITY, providerId),
+    getModels: (providerId) => electron.ipcRenderer.invoke(CHANNELS.AI_PROVIDERS.GET_MODELS, providerId)
   }
 };
 electron.contextBridge.exposeInMainWorld("matriarch", matriarch);

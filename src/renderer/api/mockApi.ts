@@ -84,5 +84,21 @@ export const mockApi: MatriarchApi = {
             updatedAt: new Date(),
         }),
         delete: async () => { },
-    }
+    },
+    aiProviders: {
+        list: async () => [{
+            id: 'ollama',
+            name: 'Ollama',
+            description: 'Run open-source LLMs locally with Ollama',
+            enabled: false,
+            available: false,
+            config: { baseUrl: 'http://localhost:11434', defaultModel: 'llama3.2' },
+        }],
+        getConfig: async () => ({ baseUrl: 'http://localhost:11434', defaultModel: 'llama3.2' }),
+        setEnabled: async (providerId, enabled) => console.log('Mock setEnabled:', providerId, enabled),
+        updateConfig: async (providerId, config) => console.log('Mock updateConfig:', providerId, config),
+        checkAvailability: async () => ({ available: false, error: 'Mock - Ollama not running' }),
+        getModels: async () => [],
+    },
 }
+

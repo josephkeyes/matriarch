@@ -12,6 +12,7 @@ import { registerSettingsApi } from './settingsApi'
 import { registerAgentsApi } from './agentsApi'
 import { registerCollectionsApi } from './collectionsApi'
 import { registerNotesApi } from './notesApi'
+import { registerAIProvidersHandlers } from './aiProvidersApi'
 
 /**
  * Register all API handlers.
@@ -25,6 +26,8 @@ export function registerAllHandlers(): void {
     registerAgentsApi()
     registerCollectionsApi()
     registerNotesApi()
+    registerAIProvidersHandlers()
 
     console.log('API handlers registered successfully')
 }
+

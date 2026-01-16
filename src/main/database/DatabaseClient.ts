@@ -157,6 +157,26 @@ export class DatabaseClient {
                 )
             `)
 
+            // AI Provider tables
+            await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS ai_providers (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    enabled INTEGER NOT NULL DEFAULT 0,
+                    created_at DATETIME NOT NULL DEFAULT (datetime('now')),
+                    updated_at DATETIME NOT NULL DEFAULT (datetime('now'))
+                )
+            `)
+
+            await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS ai_provider_configs (
+                    id TEXT PRIMARY KEY,
+                    provider_id TEXT NOT NULL UNIQUE,
+                    config_json TEXT NOT NULL,
+                    FOREIGN KEY (provider_id) REFERENCES ai_providers(id) ON DELETE CASCADE
+                )
+            `)
+
             const timestamp = BigInt(Date.now())
             await this.prisma.startupEvent.create({
                 data: {

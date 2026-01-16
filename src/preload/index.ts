@@ -43,6 +43,17 @@ const matriarch: MatriarchApi = {
         update: (id, data) => ipcRenderer.invoke(CHANNELS.NOTES.UPDATE, id, data),
         delete: (id) => ipcRenderer.invoke(CHANNELS.NOTES.DELETE, id),
     },
+    aiProviders: {
+        list: () => ipcRenderer.invoke(CHANNELS.AI_PROVIDERS.LIST),
+        getConfig: (providerId: string) => ipcRenderer.invoke(CHANNELS.AI_PROVIDERS.GET_CONFIG, providerId),
+        setEnabled: (providerId: string, enabled: boolean) =>
+            ipcRenderer.invoke(CHANNELS.AI_PROVIDERS.SET_ENABLED, providerId, enabled),
+        updateConfig: (providerId: string, config: Record<string, unknown>) =>
+            ipcRenderer.invoke(CHANNELS.AI_PROVIDERS.UPDATE_CONFIG, providerId, config),
+        checkAvailability: (providerId: string) =>
+            ipcRenderer.invoke(CHANNELS.AI_PROVIDERS.CHECK_AVAILABILITY, providerId),
+        getModels: (providerId: string) => ipcRenderer.invoke(CHANNELS.AI_PROVIDERS.GET_MODELS, providerId),
+    },
 }
 
 // Expose the typed API to the renderer
