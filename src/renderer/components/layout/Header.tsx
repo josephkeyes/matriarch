@@ -82,23 +82,34 @@ export function HeaderNav({
 
 
 /**
- * Header actions (settings, notifications, user).
+ * Header actions (theme toggle, settings, notifications, user).
  */
 export function HeaderActions({
+    onThemeToggle,
+    resolvedTheme,
     onSettingsClick,
     onNotificationsClick,
     userAvatar
 }: {
+    onThemeToggle?: () => void
+    resolvedTheme?: 'light' | 'dark'
     onSettingsClick?: () => void
     onNotificationsClick?: () => void
     userAvatar?: string
 }) {
     return (
-        <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="icon" onClick={onSettingsClick}>
+        <div className="flex items-center space-x-2">
+            {onThemeToggle && (
+                <Button variant="ghost" size="icon" onClick={onThemeToggle} title={resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
+                    <span className="material-icons-round">
+                        {resolvedTheme === 'dark' ? 'light_mode' : 'dark_mode'}
+                    </span>
+                </Button>
+            )}
+            <Button variant="ghost" size="icon" onClick={onSettingsClick} title="Settings">
                 <span className="material-icons-round">settings</span>
             </Button>
-            <Button variant="ghost" size="icon" onClick={onNotificationsClick}>
+            <Button variant="ghost" size="icon" onClick={onNotificationsClick} title="Notifications">
                 <span className="material-icons-round">notifications</span>
             </Button>
             <div className="flex items-center space-x-2 pl-2 border-l border-slate-200 dark:border-border-dark">
