@@ -11,7 +11,7 @@ import {
 import { $setBlocksType } from '@lexical/selection';
 import { $createHeadingNode, $isHeadingNode, HeadingTagType } from '@lexical/rich-text';
 import { $createParagraphNode } from 'lexical';
-import { FloatingToolbar, ToolbarAction } from './FloatingToolbar';
+import { FloatingToolbar, ToolbarAction, SubmenuItem } from './FloatingToolbar';
 
 const SHOW_DELAY_MS = 200;
 const TOOLBAR_OFFSET_Y = 10;
@@ -26,6 +26,7 @@ export function FloatingToolbarPlugin() {
     const [isVisible, setIsVisible] = useState(false);
     const [position, setPosition] = useState({ top: 0, left: 0 });
     const [activeFormats, setActiveFormats] = useState<Set<TextFormatType>>(new Set());
+    const [currentHeadingType, setCurrentHeadingType] = useState<string | null>(null);
     const showTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const toolbarRef = useRef<HTMLDivElement>(null);
 
@@ -88,6 +89,15 @@ export function FloatingToolbarPlugin() {
                     if (selection.hasFormat('strikethrough')) formats.add('strikethrough');
                     setActiveFormats(formats);
 
+                    // Track current heading type
+                    const anchorNode = selection.anchor.getNode();
+                    const element = anchorNode.getTopLevelElement();
+                    if ($isHeadingNode(element)) {
+                        setCurrentHeadingType(element.getTag());
+                    } else {
+                        setCurrentHeadingType(null);
+                    }
+
                     showToolbar();
                 } else {
                     hideToolbar();
@@ -140,31 +150,65 @@ export function FloatingToolbarPlugin() {
         editor.dispatchCommand(FORMAT_TEXT_COMMAND, format);
     }, [editor]);
 
-    // Toggle heading
-    const toggleHeading = useCallback(() => {
+    // Set heading to specific type
+    const setHeading = useCallback((headingType: HeadingTagType | 'paragraph') => {
         editor.update(() => {
             const selection = $getSelection();
             if (!$isRangeSelection(selection)) return;
 
-            const anchorNode = selection.anchor.getNode();
-            const element = anchorNode.getTopLevelElement();
-
-            if ($isHeadingNode(element)) {
-                const currentTag = element.getTag();
-                // Cycle: h1 -> h2 -> h3 -> paragraph
-                if (currentTag === 'h1') {
-                    $setBlocksType(selection, () => $createHeadingNode('h2'));
-                } else if (currentTag === 'h2') {
-                    $setBlocksType(selection, () => $createHeadingNode('h3'));
-                } else {
-                    $setBlocksType(selection, () => $createParagraphNode());
-                }
+            if (headingType === 'paragraph') {
+                $setBlocksType(selection, () => $createParagraphNode());
             } else {
-                // Convert to h1
-                $setBlocksType(selection, () => $createHeadingNode('h1'));
+                $setBlocksType(selection, () => $createHeadingNode(headingType));
             }
         });
     }, [editor]);
+
+    // Heading submenu items
+    const headingSubmenuItems: SubmenuItem[] = [
+        {
+            id: 'h1',
+            label: 'Heading 1',
+            onClick: () => setHeading('h1'),
+            isActive: currentHeadingType === 'h1',
+        },
+        {
+            id: 'h2',
+            label: 'Heading 2',
+            onClick: () => setHeading('h2'),
+            isActive: currentHeadingType === 'h2',
+        },
+        {
+            id: 'h3',
+            label: 'Heading 3',
+            onClick: () => setHeading('h3'),
+            isActive: currentHeadingType === 'h3',
+        },
+        {
+            id: 'h4',
+            label: 'Heading 4',
+            onClick: () => setHeading('h4'),
+            isActive: currentHeadingType === 'h4',
+        },
+        {
+            id: 'h5',
+            label: 'Heading 5',
+            onClick: () => setHeading('h5'),
+            isActive: currentHeadingType === 'h5',
+        },
+        {
+            id: 'h6',
+            label: 'Heading 6',
+            onClick: () => setHeading('h6'),
+            isActive: currentHeadingType === 'h6',
+        },
+        {
+            id: 'paragraph',
+            label: 'Paragraph',
+            onClick: () => setHeading('paragraph'),
+            isActive: currentHeadingType === null,
+        },
+    ];
 
     // Define formatting actions
     const formattingActions: ToolbarAction[] = [
@@ -184,9 +228,12 @@ export function FloatingToolbarPlugin() {
         },
         {
             id: 'heading',
-            label: 'Toggle Heading',
+            label: 'Text Style',
             shortLabel: 'T',
-            onClick: toggleHeading,
+            onClick: () => { },
+            hasSubmenu: true,
+            submenuItems: headingSubmenuItems,
+            isActive: currentHeadingType !== null,
         },
     ];
 
