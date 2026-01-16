@@ -2,6 +2,7 @@ import React, { useCallback } from 'react'
 import { ThemeProvider } from './ThemeContext'
 import { ContextMenuProvider } from './ContextMenuContext'
 import { CommandPaletteProvider } from './CommandPaletteContext'
+import { LayoutProvider } from './LayoutContext'
 
 interface AppProvidersProps {
     children: React.ReactNode
@@ -28,10 +29,12 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
     // and let App handle CommandPaletteProvider until we fix that coupling.
 
     return (
-        <ThemeProvider>
-            <ContextMenuProvider>
-                {children}
-            </ContextMenuProvider>
-        </ThemeProvider>
+        <LayoutProvider>
+            <ThemeProvider>
+                <ContextMenuProvider>
+                    {children}
+                </ContextMenuProvider>
+            </ThemeProvider>
+        </LayoutProvider>
     )
 }
