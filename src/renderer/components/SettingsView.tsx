@@ -327,9 +327,7 @@ export function SettingsView({ onClose }: SettingsViewProps) {
                 </div>
             </section>
 
-            {/* Right Panel - System Status */}
-            <aside className="w-72 flex-shrink-0 border-l border-slate-200 dark:border-border-dark flex flex-col bg-white dark:bg-surface-dark overflow-hidden">
-                {/* System Status Section */}
+            {/* <aside className="w-72 flex-shrink-0 border-l border-slate-200 dark:border-border-dark flex flex-col bg-white dark:bg-surface-dark overflow-hidden">
                 <div className="p-6 border-b border-slate-100 dark:border-border-dark/50 bg-slate-50 dark:bg-background-dark">
                     <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">
                         System Status
@@ -353,13 +351,11 @@ export function SettingsView({ onClose }: SettingsViewProps) {
                     </div>
                 </div>
 
-                {/* Recent Config Changes */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
                     <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">
                         Recent Config Changes
                     </h2>
                     <div className="space-y-6">
-                        {/* Change Item 1 */}
                         <div className="relative pl-4 border-l border-slate-100 dark:border-border-dark">
                             <div className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-primary" />
                             <p className="text-[11px] font-semibold text-slate-900 dark:text-text-main-dark">
@@ -371,7 +367,6 @@ export function SettingsView({ onClose }: SettingsViewProps) {
                             <p className="text-[9px] text-slate-400 mt-1">2 minutes ago</p>
                         </div>
 
-                        {/* Change Item 2 */}
                         <div className="relative pl-4 border-l border-slate-100 dark:border-border-dark">
                             <div className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-700" />
                             <p className="text-[11px] font-semibold text-slate-900 dark:text-text-main-dark">
@@ -383,7 +378,6 @@ export function SettingsView({ onClose }: SettingsViewProps) {
                             <p className="text-[9px] text-slate-400 mt-1">Yesterday, 14:20</p>
                         </div>
 
-                        {/* Change Item 3 */}
                         <div className="relative pl-4 border-l border-slate-100 dark:border-border-dark">
                             <div className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-700" />
                             <p className="text-[11px] font-semibold text-slate-900 dark:text-text-main-dark">
@@ -397,6 +391,7 @@ export function SettingsView({ onClose }: SettingsViewProps) {
                     </div>
                 </div>
             </aside>
+             */}
         </div>
     )
 }
