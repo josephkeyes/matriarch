@@ -161,3 +161,30 @@ model NoteAssociation {
   @@unique([sourceId, targetId])
   @@map("note_associations")
 }
+
+// ============================================================================
+// AI Providers (Phase-1 AI Settings)
+// ============================================================================
+
+model AIProvider {
+  id        String   @id
+  name      String
+  enabled   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  config    AIProviderConfig?
+  
+  @@map("ai_providers")
+}
+
+model AIProviderConfig {
+  id          String     @id @default(uuid())
+  providerId  String     @unique @map("provider_id")
+  configJson  String     @map("config_json")
+  
+  provider    AIProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  
+  @@map("ai_provider_configs")
+}
+

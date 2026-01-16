@@ -31,6 +31,14 @@ export const CHANNELS = {
         UPDATE: 'notes:update',
         DELETE: 'notes:delete',
     },
+    AI_PROVIDERS: {
+        LIST: 'ai-providers:list',
+        GET_CONFIG: 'ai-providers:get-config',
+        SET_ENABLED: 'ai-providers:set-enabled',
+        UPDATE_CONFIG: 'ai-providers:update-config',
+        CHECK_AVAILABILITY: 'ai-providers:check-availability',
+        GET_MODELS: 'ai-providers:get-models',
+    },
     // Future channels:
     // TASKS: { CREATE: 'tasks:create', ... }
 } as const

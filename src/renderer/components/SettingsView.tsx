@@ -1,7 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { cn } from '../lib/cn'
 import { Button } from './ui/Button'
 import { SettingsToggle } from './ui/SettingsToggle'
+import { ProviderCard } from './settings/ProviderCard'
+import { OllamaConfigPanel } from './settings/OllamaConfigPanel'
+import type { AIProviderInfo } from '../../shared/api/contracts'
 
 // Settings navigation items
 const settingsNavItems = [
@@ -28,12 +31,61 @@ export function SettingsView({ onClose }: SettingsViewProps) {
     // Navigation state
     const [activeSection, setActiveSection] = useState('ai')
 
+    // AI Providers state
+    const [providers, setProviders] = useState<AIProviderInfo[]>([])
+    const [loadingProviders, setLoadingProviders] = useState(true)
+
     // Form state (UI only for now)
     const [autoNoteSummary, setAutoNoteSummary] = useState(true)
     const [backgroundMapping, setBackgroundMapping] = useState(false)
     const [selectedModel, setSelectedModel] = useState('gpt-4o')
     const [maxTokens, setMaxTokens] = useState('4096')
     const [temperature, setTemperature] = useState(50)
+
+    // Load providers on mount
+    useEffect(() => {
+        loadProviders()
+    }, [])
+
+    const loadProviders = async () => {
+        try {
+            setLoadingProviders(true)
+            const list = await window.matriarch.aiProviders.list()
+            setProviders(list)
+        } catch (error) {
+            console.error('Failed to load providers:', error)
+        } finally {
+            setLoadingProviders(false)
+        }
+    }
+
+    const handleProviderToggle = async (providerId: string, enabled: boolean) => {
+        try {
+            await window.matriarch.aiProviders.setEnabled(providerId, enabled)
+            // Update local state
+            setProviders(prev => prev.map(p =>
+                p.id === providerId ? { ...p, enabled } : p
+            ))
+        } catch (error) {
+            console.error('Failed to toggle provider:', error)
+        }
+    }
+
+    const handleProviderConfigChange = async (providerId: string, config: Record<string, unknown>) => {
+        try {
+            await window.matriarch.aiProviders.updateConfig(providerId, config)
+            // Update local state
+            setProviders(prev => prev.map(p =>
+                p.id === providerId ? { ...p, config } : p
+            ))
+        } catch (error) {
+            console.error('Failed to update provider config:', error)
+        }
+    }
+
+    const handleTestConnection = async (providerId: string) => {
+        return await window.matriarch.aiProviders.checkAvailability(providerId)
+    }
 
     return (
         <div className="flex h-full bg-white dark:bg-background-dark">
@@ -112,6 +164,46 @@ export function SettingsView({ onClose }: SettingsViewProps) {
                 {/* Scrollable Content */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
                     <div className="max-w-4xl mx-auto space-y-10">
+                        {/* AI Providers Section */}
+                        <section>
+                            <div className="flex items-center space-x-2 mb-6">
+                                <span className="material-icons-round text-primary">hub</span>
+                                <h3 className="text-lg font-bold text-slate-900 dark:text-text-main-dark">
+                                    AI Providers
+                                </h3>
+                            </div>
+                            <p className="text-sm text-slate-500 dark:text-text-secondary-dark mb-6">
+                                Configure local and cloud AI providers. Providers are disabled by default.
+                            </p>
+
+                            {loadingProviders ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <span className="animate-spin material-icons-round text-primary">refresh</span>
+                                    <span className="ml-2 text-sm text-slate-500">Loading providers...</span>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {providers.map((provider) => (
+                                        <ProviderCard
+                                            key={provider.id}
+                                            provider={provider}
+                                            onToggle={handleProviderToggle}
+                                            onConfigChange={handleProviderConfigChange}
+                                            onTestConnection={handleTestConnection}
+                                        >
+                                            {provider.id === 'ollama' && provider.config && (
+                                                <OllamaConfigPanel
+                                                    config={provider.config as { baseUrl: string; defaultModel: string }}
+                                                    onSave={(config) => handleProviderConfigChange(provider.id, config as unknown as Record<string, unknown>)}
+                                                    onTestConnection={() => handleTestConnection(provider.id)}
+                                                />
+                                            )}
+                                        </ProviderCard>
+                                    ))}
+                                </div>
+                            )}
+                        </section>
+
                         {/* AI Task Automation Section */}
                         <section>
                             <div className="flex items-center space-x-2 mb-6">

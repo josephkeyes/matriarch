@@ -925,6 +925,23 @@ const _DatabaseClient = class _DatabaseClient {
                     UNIQUE(source_id, target_id)
                 )
             `);
+      await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS ai_providers (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    enabled INTEGER NOT NULL DEFAULT 0,
+                    created_at DATETIME NOT NULL DEFAULT (datetime('now')),
+                    updated_at DATETIME NOT NULL DEFAULT (datetime('now'))
+                )
+            `);
+      await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS ai_provider_configs (
+                    id TEXT PRIMARY KEY,
+                    provider_id TEXT NOT NULL UNIQUE,
+                    config_json TEXT NOT NULL,
+                    FOREIGN KEY (provider_id) REFERENCES ai_providers(id) ON DELETE CASCADE
+                )
+            `);
       const timestamp = BigInt(Date.now());
       await this.prisma.startupEvent.create({
         data: {
@@ -1067,6 +1084,14 @@ const CHANNELS = {
     READ: "notes:read",
     UPDATE: "notes:update",
     DELETE: "notes:delete"
+  },
+  AI_PROVIDERS: {
+    LIST: "ai-providers:list",
+    GET_CONFIG: "ai-providers:get-config",
+    SET_ENABLED: "ai-providers:set-enabled",
+    UPDATE_CONFIG: "ai-providers:update-config",
+    CHECK_AVAILABILITY: "ai-providers:check-availability",
+    GET_MODELS: "ai-providers:get-models"
   }
   // Future channels:
   // TASKS: { CREATE: 'tasks:create', ... }
@@ -1391,6 +1416,174 @@ function registerNotesApi() {
   ipcMain.handle(CHANNELS.NOTES.UPDATE, async (_, id, data) => updateNote(id, data));
   ipcMain.handle(CHANNELS.NOTES.DELETE, async (_, id) => deleteNote(id));
 }
+var AIProviderType = /* @__PURE__ */ ((AIProviderType2) => {
+  AIProviderType2["OLLAMA"] = "ollama";
+  return AIProviderType2;
+})(AIProviderType || {});
+const PROVIDER_METADATA = {
+  [
+    "ollama"
+    /* OLLAMA */
+  ]: {
+    id: "ollama",
+    name: "Ollama",
+    description: "Run open-source LLMs locally with Ollama",
+    icon: "terminal"
+  }
+};
+const OLLAMA_DEFAULTS = {
+  baseUrl: "http://localhost:11434",
+  defaultModel: "llama3.2"
+};
+function getDefaultConfig(providerId) {
+  switch (providerId) {
+    case "ollama":
+      return { ...OLLAMA_DEFAULTS };
+    default:
+      return null;
+  }
+}
+async function getProviders() {
+  var _a2;
+  const prisma = DatabaseClient.getInstance().getClient();
+  const providers = [];
+  for (const type of Object.values(AIProviderType)) {
+    const metadata = PROVIDER_METADATA[type];
+    const dbProvider = await prisma.aIProvider.findUnique({
+      where: { id: type },
+      include: { config: true }
+    });
+    const config = ((_a2 = dbProvider == null ? void 0 : dbProvider.config) == null ? void 0 : _a2.configJson) ? JSON.parse(dbProvider.config.configJson) : getDefaultConfig(type);
+    const available = await checkProviderAvailability(type, config);
+    providers.push({
+      id: type,
+      name: metadata.name,
+      description: metadata.description,
+      enabled: (dbProvider == null ? void 0 : dbProvider.enabled) ?? false,
+      available: available.available,
+      config
+    });
+  }
+  return providers;
+}
+async function setProviderEnabled(providerId, enabled) {
+  const prisma = DatabaseClient.getInstance().getClient();
+  const metadata = PROVIDER_METADATA[providerId];
+  if (!metadata) {
+    throw new Error(`Unknown provider: ${providerId}`);
+  }
+  await prisma.aIProvider.upsert({
+    where: { id: providerId },
+    update: { enabled },
+    create: {
+      id: providerId,
+      name: metadata.name,
+      enabled
+    }
+  });
+}
+async function getProviderConfig(providerId) {
+  var _a2;
+  const prisma = DatabaseClient.getInstance().getClient();
+  const provider = await prisma.aIProvider.findUnique({
+    where: { id: providerId },
+    include: { config: true }
+  });
+  if ((_a2 = provider == null ? void 0 : provider.config) == null ? void 0 : _a2.configJson) {
+    return JSON.parse(provider.config.configJson);
+  }
+  return getDefaultConfig(providerId);
+}
+async function updateProviderConfig(providerId, config) {
+  const prisma = DatabaseClient.getInstance().getClient();
+  const metadata = PROVIDER_METADATA[providerId];
+  if (!metadata) {
+    throw new Error(`Unknown provider: ${providerId}`);
+  }
+  await prisma.aIProvider.upsert({
+    where: { id: providerId },
+    update: {},
+    create: {
+      id: providerId,
+      name: metadata.name,
+      enabled: false
+    }
+  });
+  await prisma.aIProviderConfig.upsert({
+    where: { providerId },
+    update: { configJson: JSON.stringify(config) },
+    create: {
+      providerId,
+      configJson: JSON.stringify(config)
+    }
+  });
+}
+async function checkProviderAvailability(providerId, config) {
+  switch (providerId) {
+    case AIProviderType.OLLAMA:
+      return checkOllamaAvailability(config);
+    default:
+      return { available: false, error: `Unknown provider: ${providerId}` };
+  }
+}
+async function checkOllamaAvailability(config) {
+  var _a2;
+  const baseUrl = (config == null ? void 0 : config.baseUrl) ?? OLLAMA_DEFAULTS.baseUrl;
+  try {
+    const response = await fetch(`${baseUrl}/api/tags`, {
+      method: "GET",
+      signal: AbortSignal.timeout(5e3)
+      // 5 second timeout
+    });
+    if (!response.ok) {
+      return { available: false, error: `Ollama returned status ${response.status}` };
+    }
+    const data = await response.json();
+    const models = ((_a2 = data.models) == null ? void 0 : _a2.map((m) => m.name)) ?? [];
+    return { available: true, models };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Connection failed";
+    return { available: false, error: message };
+  }
+}
+async function getOllamaModels(config) {
+  const result = await checkOllamaAvailability(config ?? null);
+  return result.models ?? [];
+}
+function registerAIProvidersHandlers() {
+  ipcMain.handle(CHANNELS.AI_PROVIDERS.LIST, async () => {
+    return getProviders();
+  });
+  ipcMain.handle(CHANNELS.AI_PROVIDERS.GET_CONFIG, async (_event, providerId) => {
+    return getProviderConfig(providerId);
+  });
+  ipcMain.handle(
+    CHANNELS.AI_PROVIDERS.SET_ENABLED,
+    async (_event, providerId, enabled) => {
+      await setProviderEnabled(providerId, enabled);
+    }
+  );
+  ipcMain.handle(
+    CHANNELS.AI_PROVIDERS.UPDATE_CONFIG,
+    async (_event, providerId, config) => {
+      await updateProviderConfig(providerId, config);
+    }
+  );
+  ipcMain.handle(
+    CHANNELS.AI_PROVIDERS.CHECK_AVAILABILITY,
+    async (_event, providerId) => {
+      const config = await getProviderConfig(providerId);
+      return checkProviderAvailability(providerId, config);
+    }
+  );
+  ipcMain.handle(CHANNELS.AI_PROVIDERS.GET_MODELS, async (_event, providerId) => {
+    if (providerId === AIProviderType.OLLAMA) {
+      const config = await getProviderConfig(providerId);
+      return getOllamaModels(config);
+    }
+    return [];
+  });
+}
 function registerAllHandlers() {
   console.log("Registering API handlers...");
   registerSystemApi();
@@ -1398,6 +1591,7 @@ function registerAllHandlers() {
   registerAgentsApi();
   registerCollectionsApi();
   registerNotesApi();
+  registerAIProvidersHandlers();
   console.log("API handlers registered successfully");
 }
 const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
