@@ -25,7 +25,7 @@ export interface NavItemProps extends HTMLAttributes<HTMLDivElement> {
  * Supports icons, active states, counts, and nested indentation.
  */
 export const NavItem = forwardRef<HTMLDivElement, NavItemProps>(
-    ({ className, icon, label, isActive = false, count, level = 0, children, defaultExpanded = false, collapsed = false, ...props }, ref) => {
+    ({ className, icon, label, isActive = false, count, level = 0, children, defaultExpanded = false, collapsed = false, onClick, ...props }, ref) => {
         const [isExpanded, setIsExpanded] = useState(defaultExpanded)
         const hasChildren = !!children
 
@@ -37,7 +37,19 @@ export const NavItem = forwardRef<HTMLDivElement, NavItemProps>(
 
         const handleToggle = (e: React.MouseEvent) => {
             if (hasChildren && !collapsed) {
-                e.stopPropagation() // Prevent triggering navigation
+                e.preventDefault()
+                e.stopPropagation()
+                setIsExpanded(!isExpanded)
+            }
+        }
+
+        const handleRowClick = (e: React.MouseEvent<HTMLDivElement>) => {
+            if (onClick) {
+                onClick(e)
+                return
+            }
+            // If no click handler (navigation) defined, and has children, toggle expansion
+            if (hasChildren && !collapsed) {
                 setIsExpanded(!isExpanded)
             }
         }
@@ -46,6 +58,7 @@ export const NavItem = forwardRef<HTMLDivElement, NavItemProps>(
             <div>
                 <div
                     ref={ref}
+                    onClick={handleRowClick}
                     className={cn(
                         // Base styles
                         'flex items-center space-x-2 py-1.5 rounded-md cursor-pointer group select-none transition-all duration-200',
