@@ -214,7 +214,11 @@ function AppContent() {
                     }
                     actions={
                         <div className="flex items-center space-x-3">
-                            <HeaderActions onSettingsClick={handleNavigateToSettings} />
+                            <HeaderActions
+                                onThemeToggle={toggleTheme}
+                                resolvedTheme={resolvedTheme}
+                                onSettingsClick={handleNavigateToSettings}
+                            />
                         </div>
                     }
                 />
@@ -377,11 +381,6 @@ function AppContent() {
                             </nav>
                         </div>
                         <div className="flex items-center space-x-4">
-                            <Button variant="ghost" size="icon" onClick={toggleTheme}>
-                                <span className="material-icons-round">
-                                    {resolvedTheme === 'dark' ? 'light_mode' : 'dark_mode'}
-                                </span>
-                            </Button>
                             <Button variant="primary" onClick={openCreateModal}>
                                 <span className="material-icons-round text-xs mr-1">add</span>
                                 New Collection
