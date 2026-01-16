@@ -105,18 +105,82 @@ export function CommandPaletteProvider({
         refreshCommands()
     }, [refreshCommands])
 
-    // Handle keyboard shortcut (Cmd+Shift+P) for in-app triggering
+
+    // Helper to check if key event matches accelerator
+    const matchesHotkey = useCallback((e: KeyboardEvent, accelerator: string): boolean => {
+        const parts = accelerator.toLowerCase().split('+')
+        const key = parts[parts.length - 1]
+
+        // Modifiers
+        const hasCmd = parts.includes('commandorcontrol') || parts.includes('cmd') || parts.includes('ctrl') || parts.includes('meta')
+        const hasShift = parts.includes('shift')
+        const hasAlt = parts.includes('alt') || parts.includes('option')
+
+        // Check modifiers
+        // Note: On Mac, metaKey is Command. On Windows/Linux, ctrlKey is Control.
+        // We check for either to be robust across platforms for "CommandOrControl" logic in web
+        const eventCmd = e.metaKey || e.ctrlKey
+        if (hasCmd !== eventCmd) return false
+        if (hasShift !== e.shiftKey) return false
+        if (hasAlt !== e.altKey) return false
+
+        // Check Key
+        // Special case character mappings if needed
+        if (key === '\\' && e.key === '\\') return true
+        if (key === ',' && e.key === ',') return true
+        if (key === '/' && e.key === '/') return true
+
+        return e.key.toLowerCase() === key
+    }, [])
+
+    // Handle keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            // 1. Hardcoded fallback for Command Palette (in case commands aren't loaded yet)
             if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'p') {
                 e.preventDefault()
                 toggle()
+                return
+            }
+
+            // 2. check other commands
+            if (!commands.length) return
+
+            for (const cmd of commands) {
+                if (!cmd.enabled) continue
+
+                // Helper to execute and stop propagation
+                const trigger = () => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    executeCommand(cmd.id)
+                }
+
+                // Check defined hotkeys
+                if (cmd.hotkeys && cmd.hotkeys.length > 0) {
+                    for (const hotkey of cmd.hotkeys) {
+                        if (hotkey.isGlobal) continue // Global hotkeys handled by main process
+                        if (matchesHotkey(e, hotkey.accelerator)) {
+                            trigger()
+                            return
+                        }
+                    }
+                }
+                // Fallback for built-in commands that might have defaultHotkey property 
+                // (though CommandRegistry maps it to hotkeys array, so this might be redundant but safe)
+                else if ((cmd as any).defaultHotkey && !(cmd as any).defaultIsGlobal) {
+                    if (matchesHotkey(e, (cmd as any).defaultHotkey)) {
+                        trigger()
+                        return
+                    }
+                }
             }
         }
 
         window.addEventListener('keydown', handleKeyDown)
         return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [toggle])
+    }, [commands, executeCommand, matchesHotkey, toggle])
+
 
     // Listen for command execution from main process (global hotkeys)
     useEffect(() => {
