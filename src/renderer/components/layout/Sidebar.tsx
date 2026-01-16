@@ -6,8 +6,10 @@ import { ContextMenu, ContextMenuItem } from '../ui/ContextMenu'
 import { Collection } from '../../../shared/api/contracts'
 
 export interface SidebarProps {
-    /** Sidebar title */
-    title?: string
+    /** Custom header content (overrides title/searchInHeader) */
+    header?: ReactNode
+    /** Sidebar title or header content (legacy/default) */
+    title?: string | ReactNode
     /** Whether sidebar is collapsible */
     collapsible?: boolean
     /** Callback when collapse button is clicked */
@@ -15,6 +17,8 @@ export interface SidebarProps {
     /** Search configuration */
     searchPlaceholder?: string
     onSearch?: (query: string) => void
+    /** Whether to render search input in the header */
+    searchInHeader?: boolean
     /** Sidebar content sections */
     children: ReactNode
     /** Additional className */
@@ -29,12 +33,14 @@ export interface SidebarProps {
  * Left sidebar component with search and navigation sections.
  */
 export function Sidebar({
+    header,
     title = 'MAIN NAVIGATION',
     collapsible = true,
     onCollapse,
     isCollapsed = false,
     searchPlaceholder = 'Search knowledge...',
     onSearch,
+    searchInHeader = false,
     children,
     className,
     width = 'default'
@@ -70,29 +76,49 @@ export function Sidebar({
             className
         )}>
             {/* Header */}
-            <div className={cn(
-                "flex items-center border-b border-slate-100 dark:border-border-dark/50 min-h-[53px]",
-                isCollapsed ? "justify-center p-2" : "justify-between p-4"
-            )}>
-                {!isCollapsed && (
-                    <h2 className="font-semibold text-sm tracking-wide text-slate-900 dark:text-text-main-dark transition-opacity duration-200">
-                        {title}
-                    </h2>
-                )}
-                {collapsible && (
-                    <Button variant="ghost" size="icon" onClick={onCollapse} className="p-0.5">
-                        <span className={cn(
-                            "material-icons-round text-slate-400 text-sm transition-transform duration-300",
-                            isCollapsed && "rotate-180"
-                        )}>
-                            keyboard_double_arrow_left
-                        </span>
-                    </Button>
-                )}
-            </div>
+            {header ? (
+                <div className="border-b border-slate-100 dark:border-border-dark/50">
+                    {header}
+                </div>
+            ) : (
+                <div className={cn(
+                    "flex items-center border-b border-slate-100 dark:border-border-dark/50 min-h-[53px]",
+                    isCollapsed ? "justify-center p-2" : "justify-between p-4"
+                )}>
+                    {!isCollapsed && (
+                        searchInHeader ? (
+                            <div className="flex-1 mr-2">
+                                <SearchInput
+                                    placeholder={searchPlaceholder}
+                                    onChange={(e) => onSearch?.(e.target.value)}
+                                    className="bg-slate-50 dark:bg-background-dark/50"
+                                />
+                            </div>
+                        ) : (
+                            typeof title === 'string' ? (
+                                <h2 className="font-semibold text-sm tracking-wide text-slate-900 dark:text-text-main-dark transition-opacity duration-200">
+                                    {title}
+                                </h2>
+                            ) : (
+                                <div className="flex-1 mr-2">{title}</div>
+                            )
+                        )
+                    )}
+                    {collapsible && (
+                        <Button variant="ghost" size="icon" onClick={onCollapse} className="p-0.5">
+                            <span className={cn(
+                                "material-icons-round text-slate-400 text-sm transition-transform duration-300",
+                                isCollapsed && "rotate-180"
+                            )}>
+                                keyboard_double_arrow_left
+                            </span>
+                        </Button>
+                    )}
+                </div>
+            )}
 
-            {/* Search */}
-            {!isCollapsed && (
+            {/* Search (Body) - only if NOT in header */}
+            {!isCollapsed && !searchInHeader && (
                 <div className="p-4 transition-opacity duration-200">
                     <SearchInput
                         placeholder={searchPlaceholder}

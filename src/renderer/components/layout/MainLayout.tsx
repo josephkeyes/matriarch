@@ -2,7 +2,9 @@ import React, { useState } from 'react'
 import { useThemeContext } from '../../contexts/ThemeContext'
 import { useContextMenu } from '../../contexts/ContextMenuContext'
 import { useLayoutContext } from '../../contexts/LayoutContext'
-import { useAppNavigation, ViewType } from '../../hooks/useAppNavigation'
+import { ViewType } from '../../contexts/NavigationContext'
+import { useCommandPalette } from '../../contexts/CommandPaletteContext'
+import { cn } from '../../lib/cn'
 import {
     AppShell,
     Header,
@@ -21,7 +23,8 @@ import {
     NavItem,
     Tag,
     StatCard,
-    CommandPaletteButton
+    CommandPaletteButton,
+    SearchInput
 } from '../ui'
 
 // Navigation items needed for HeaderNav
@@ -62,6 +65,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 }) => {
     const { toggleTheme, resolvedTheme } = useThemeContext()
     const { showContextMenu } = useContextMenu()
+    const { toggleCommandPalette } = useCommandPalette()
 
     const {
         isLeftSidebarCollapsed,
@@ -75,7 +79,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         showContextMenu(e, [
             {
                 label: 'Create Collection',
-                icon: 'add_circle_outline',
+                icon: 'create_new_folder',
                 action: onCreateCollection
             }
         ])
@@ -107,6 +111,56 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         onNavigate(id)
     }
 
+    // Custom Sidebar Header for Expanded State
+    const ExpandedSidebarHeader = (
+        <div className="flex flex-col gap-2 p-3">
+            <SearchInput
+                placeholder="Search knowledge..."
+                className="bg-slate-50 dark:bg-background-dark/50"
+            />
+            <div className="flex items-center justify-between px-1">
+                <div className="flex items-center gap-1">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="w-8 h-8 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-text-main-dark"
+                        onClick={onCreateCollection}
+                        title="New Collection"
+                    >
+                        <span className="material-icons-round text-[20px]">create_new_folder</span>
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="w-8 h-8 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-text-main-dark"
+                        onClick={() => onCreateNote()}
+                        title="New Note"
+                    >
+                        <span className="material-icons-round text-[20px]">note_add</span>
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="w-8 h-8 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-text-main-dark"
+                        onClick={toggleCommandPalette}
+                        title="Command Palette"
+                    >
+                        <span className="material-icons-round text-[20px]">terminal</span>
+                    </Button>
+                </div>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-8 h-8 text-slate-400 hover:text-slate-900 dark:text-slate-500 dark:hover:text-text-main-dark p-0.5"
+                    onClick={toggleLeftSidebar}
+                    title="Collapse Sidebar"
+                >
+                    <span className="material-icons-round text-lg">keyboard_double_arrow_left</span>
+                </Button>
+            </div>
+        </div>
+    )
+
     return (
         <AppShell
             header={
@@ -131,26 +185,42 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             }
             sidebar={
                 <Sidebar
-                    title="MAIN NAVIGATION"
+                    header={!isLeftSidebarCollapsed ? ExpandedSidebarHeader : undefined}
                     onCollapse={toggleLeftSidebar}
                     isCollapsed={isLeftSidebarCollapsed}
                 >
-                    <div className={isLeftSidebarCollapsed ? "px-2 mb-2" : "px-2 mb-4"}>
-                        <CommandPaletteButton collapsed={isLeftSidebarCollapsed} />
-                    </div>
-
-                    <div className={isLeftSidebarCollapsed ? "px-2 mb-4 flex justify-center" : "px-4 mb-4"}>
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            className={isLeftSidebarCollapsed ? "w-8 h-8 p-0 justify-center" : "w-full justify-start"}
-                            onClick={onCreateCollection}
-                            title="Add Collection"
-                        >
-                            <span className={isLeftSidebarCollapsed ? "material-icons-round text-xs" : "material-icons-round text-xs mr-2"}>add</span>
-                            {!isLeftSidebarCollapsed && "Add Collection"}
-                        </Button>
-                    </div>
+                    {/* Collapsed State Icons (Hidden when expanded) */}
+                    {isLeftSidebarCollapsed && (
+                        <div className="flex flex-col items-center gap-3 px-2 mb-6 pt-2">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="w-8 h-8 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-text-main-dark"
+                                onClick={onCreateCollection}
+                                title="New Collection"
+                            >
+                                <span className="material-icons-round text-[20px]">create_new_folder</span>
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="w-8 h-8 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-text-main-dark"
+                                onClick={() => onCreateNote()}
+                                title="New Note"
+                            >
+                                <span className="material-icons-round text-[20px]">note_add</span>
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="w-8 h-8 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-text-main-dark"
+                                onClick={toggleCommandPalette}
+                                title="Command Palette"
+                            >
+                                <span className="material-icons-round text-[20px]">terminal</span>
+                            </Button>
+                        </div>
+                    )}
 
                     <SidebarSection title="CORE AREAS" isCollapsed={isLeftSidebarCollapsed}>
                         <NavItem
@@ -162,19 +232,18 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                         />
 
                         {collections.length > 0 && (
-                            <>
-                                <NavItem
-                                    icon="layers"
-                                    label="Collections"
-                                    onContextMenu={handleCollectionsHeaderContextMenu}
-                                    collapsed={isLeftSidebarCollapsed}
-                                />
+                            <NavItem
+                                icon="layers"
+                                label="Collections"
+                                onContextMenu={handleCollectionsHeaderContextMenu}
+                                collapsed={isLeftSidebarCollapsed}
+                            >
                                 {collections.map(c => (
                                     <NavItem
                                         key={c.id}
                                         icon="folder"
                                         label={c.name}
-                                        level={0}
+                                        level={1}
                                         onContextMenu={(e) => handleCollectionContextMenu(e, c.id, c.name)}
                                         collapsed={isLeftSidebarCollapsed}
                                     >
@@ -183,20 +252,20 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                                                 key={p.note.id}
                                                 icon="description"
                                                 label={p.note.title}
-                                                level={1}
+                                                level={2}
                                                 isActive={activeView === 'note' && activeNoteId === p.note.id}
                                                 onClick={() => onNavigate('note', p.note.id)}
                                                 collapsed={isLeftSidebarCollapsed}
                                             />
                                         ))}
                                         {(!c.placements || c.placements.length === 0) && (
-                                            <div className="pl-9 pr-2 py-1.5 text-xs text-slate-400 italic cursor-default">
+                                            <div className="pl-[42px] pr-2 py-1.5 text-xs text-slate-400 italic cursor-default">
                                                 No notes
                                             </div>
                                         )}
                                     </NavItem>
                                 ))}
-                            </>
+                            </NavItem>
                         )}
 
                         <NavItem icon="task_alt" label="Tasks" collapsed={isLeftSidebarCollapsed} />
