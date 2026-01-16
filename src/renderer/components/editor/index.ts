@@ -1,2 +1,2 @@
-export { FloatingToolbar, type FloatingToolbarProps, type ToolbarAction } from './FloatingToolbar';
+export { FloatingToolbar, type FloatingToolbarProps, type ToolbarAction, type SubmenuItem } from './FloatingToolbar';
 export { FloatingToolbarPlugin } from './FloatingToolbarPlugin';

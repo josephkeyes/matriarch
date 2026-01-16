@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { cn } from '../../lib/cn';
 
 export interface ToolbarAction {
@@ -8,6 +9,15 @@ export interface ToolbarAction {
     onClick: () => void;
     isActive?: boolean;
     disabled?: boolean;
+    hasSubmenu?: boolean;
+    submenuItems?: SubmenuItem[];
+}
+
+export interface SubmenuItem {
+    id: string;
+    label: string;
+    onClick: () => void;
+    isActive?: boolean;
 }
 
 export interface FloatingToolbarProps {
@@ -28,6 +38,23 @@ export function FloatingToolbar({
     aiActions = [],
     onClose,
 }: FloatingToolbarProps) {
+    const [openSubmenuId, setOpenSubmenuId] = useState<string | null>(null);
+
+    const handleActionClick = (action: ToolbarAction) => {
+        if (action.hasSubmenu && action.submenuItems) {
+            // Toggle submenu
+            setOpenSubmenuId(openSubmenuId === action.id ? null : action.id);
+        } else {
+            action.onClick();
+            setOpenSubmenuId(null);
+        }
+    };
+
+    const handleSubmenuItemClick = (item: SubmenuItem) => {
+        item.onClick();
+        setOpenSubmenuId(null);
+    };
+
     return (
         <div
             className="fixed z-[9999] flex items-center gap-0.5 bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-lg shadow-xl px-1 py-1 animate-toolbar-fade-in"
@@ -43,25 +70,46 @@ export function FloatingToolbar({
         >
             {/* Formatting Actions */}
             {formattingActions.map((action) => (
-                <button
-                    key={action.id}
-                    onClick={action.onClick}
-                    disabled={action.disabled}
-                    title={action.label}
-                    className={cn(
-                        "w-8 h-8 flex items-center justify-center rounded-md text-sm font-semibold transition-colors",
-                        action.isActive
-                            ? "bg-primary/10 text-primary"
-                            : "text-slate-600 dark:text-text-secondary-dark hover:bg-slate-100 dark:hover:bg-background-dark",
-                        action.disabled && "opacity-40 cursor-not-allowed"
+                <div key={action.id} className="relative">
+                    <button
+                        onClick={() => handleActionClick(action)}
+                        disabled={action.disabled}
+                        title={action.label}
+                        className={cn(
+                            "w-8 h-8 flex items-center justify-center rounded-md text-sm font-semibold transition-colors",
+                            action.isActive || openSubmenuId === action.id
+                                ? "bg-primary/10 text-primary"
+                                : "text-slate-600 dark:text-text-secondary-dark hover:bg-slate-100 dark:hover:bg-background-dark",
+                            action.disabled && "opacity-40 cursor-not-allowed"
+                        )}
+                    >
+                        {action.icon ? (
+                            <span className="material-icons-round text-[18px]">{action.icon}</span>
+                        ) : (
+                            <span>{action.shortLabel || action.label.charAt(0)}</span>
+                        )}
+                    </button>
+
+                    {/* Submenu Flyout */}
+                    {action.hasSubmenu && action.submenuItems && openSubmenuId === action.id && (
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-lg shadow-xl py-1 min-w-[80px] animate-toolbar-fade-in z-[10000]">
+                            {action.submenuItems.map((item) => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => handleSubmenuItemClick(item)}
+                                    className={cn(
+                                        "w-full px-3 py-1.5 text-left text-sm font-medium transition-colors",
+                                        item.isActive
+                                            ? "bg-primary/10 text-primary"
+                                            : "text-slate-600 dark:text-text-secondary-dark hover:bg-slate-100 dark:hover:bg-background-dark"
+                                    )}
+                                >
+                                    {item.label}
+                                </button>
+                            ))}
+                        </div>
                     )}
-                >
-                    {action.icon ? (
-                        <span className="material-icons-round text-[18px]">{action.icon}</span>
-                    ) : (
-                        <span>{action.shortLabel || action.label.charAt(0)}</span>
-                    )}
-                </button>
+                </div>
             ))}
 
             {/* Divider between formatting and AI actions */}
