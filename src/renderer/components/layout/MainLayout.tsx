@@ -65,7 +65,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 }) => {
     const { toggleTheme, resolvedTheme } = useThemeContext()
     const { showContextMenu } = useContextMenu()
-    const { toggleCommandPalette } = useCommandPalette()
+    const { toggle: toggleCommandPalette } = useCommandPalette()
 
     const {
         isLeftSidebarCollapsed,
