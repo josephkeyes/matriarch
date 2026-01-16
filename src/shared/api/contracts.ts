@@ -262,6 +262,8 @@ export interface Command {
     source: CommandSource
     category?: string
     hotkeys: CommandHotkey[]
+    defaultHotkey?: string
+    defaultIsGlobal?: boolean
 }
 
 export interface CreateCommandDTO {

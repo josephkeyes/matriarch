@@ -126,7 +126,7 @@ export function SettingsView({ onClose }: SettingsViewProps) {
                 </div>
 
                 {/* Usage Footer */}
-                <div className="p-4 border-t border-slate-100 dark:border-border-dark/50">
+                {/* <div className="p-4 border-t border-slate-100 dark:border-border-dark/50">
                     <div className="bg-slate-50 dark:bg-background-dark p-3 rounded-lg">
                         <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">
                             Power User Tier
@@ -139,7 +139,7 @@ export function SettingsView({ onClose }: SettingsViewProps) {
                             <div className="bg-primary h-1 rounded-full w-[94%]" />
                         </div>
                     </div>
-                </div>
+                </div> */}
             </aside>
 
             {/* Main Content */}

@@ -410,6 +410,9 @@ export class CommandRegistry {
                 accelerator: h.accelerator,
                 isGlobal: h.isGlobal,
             })),
+            defaultHotkey: command.isBuiltIn
+                ? BUILT_IN_COMMANDS.find(b => b.id === command.id)?.defaultHotkey
+                : undefined,
         }
     }
 }

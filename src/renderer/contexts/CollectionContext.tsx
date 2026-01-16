@@ -1,15 +1,29 @@
-import { useState, useCallback, useEffect } from 'react'
+/**
+ * Collection Context
+ * 
+ * Manages collection state globally.
+ */
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 
-export function useCollectionManager() {
+interface CollectionContextValue {
+    collections: any[]
+    isLoading: boolean
+    error: string | null
+    loadCollections: () => Promise<void>
+    createCollection: (name: string) => Promise<boolean>
+    renameCollection: (id: string, name: string) => Promise<boolean>
+    deleteCollection: (id: string) => Promise<boolean>
+}
+
+const CollectionContext = createContext<CollectionContextValue | null>(null)
+
+export function CollectionProvider({ children }: { children: ReactNode }) {
     const [collections, setCollections] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
     const loadCollections = useCallback(async () => {
-        if (!window.matriarch?.collections) {
-            console.warn("Matriarch API not ready.")
-            return
-        }
+        if (!window.matriarch?.collections) return
 
         setIsLoading(true)
         try {
@@ -25,8 +39,7 @@ export function useCollectionManager() {
     }, [])
 
     const createCollection = useCallback(async (name: string) => {
-        if (!name.trim()) return
-
+        if (!name.trim()) return false
         if (window.matriarch?.collections) {
             try {
                 await window.matriarch.collections.create(name)
@@ -42,8 +55,7 @@ export function useCollectionManager() {
     }, [loadCollections])
 
     const renameCollection = useCallback(async (id: string, name: string) => {
-        if (!name.trim()) return
-
+        if (!name.trim()) return false
         if (window.matriarch?.collections) {
             try {
                 await window.matriarch.collections.update(id, { name })
@@ -78,13 +90,23 @@ export function useCollectionManager() {
         loadCollections()
     }, [loadCollections])
 
-    return {
-        collections,
-        isLoading,
-        error,
-        loadCollections,
-        createCollection,
-        renameCollection,
-        deleteCollection
-    }
+    return (
+        <CollectionContext.Provider value={{
+            collections,
+            isLoading,
+            error,
+            loadCollections,
+            createCollection,
+            renameCollection,
+            deleteCollection
+        }}>
+            {children}
+        </CollectionContext.Provider>
+    )
+}
+
+export function useCollections() {
+    const context = useContext(CollectionContext)
+    if (!context) throw new Error('useCollections must be used within CollectionProvider')
+    return context
 }
