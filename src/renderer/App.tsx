@@ -1,5 +1,6 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { events } from './services/EventBus'
+import { useEventSubscription } from './hooks/useEventSubscription'
 import { CommandPaletteProvider } from './contexts/CommandPaletteContext'
 import { AppProviders } from './contexts/AppProviders'
 import { NavigationProvider, useNavigation } from './contexts/NavigationContext'
@@ -81,22 +82,9 @@ function AppContent() {
         }
     }
 
-    // Event Bus Listeners for Modals
-    useEffect(() => {
-        const handleCreateCollectionRequest = () => setIsCreateModalOpen(true)
-        const handleCreateNoteRequest = (payload: { collectionId?: string }) => handleCreateNote(payload.collectionId)
-
-        events.on('collection:create-requested', handleCreateCollectionRequest)
-        events.on('note:create-requested', handleCreateNoteRequest)
-
-        return () => {
-            events.off('collection:create-requested', handleCreateCollectionRequest)
-            events.off('note:create-requested', handleCreateNoteRequest)
-        }
-    }, []) // Dependencies are stable (handleCreateNote depends on state but function ref should be stable if memoized, or we add to dep array)
-    // Actually handleCreateNote changes if loadCollections changes. 
-    // Let's rely on the fact that we just call setIsCreateModalOpen or handleCreateNote.
-    // Ideally wrap handleCreateNote in useCallback.
+    // Event Bus Listeners for Modals via Hook
+    useEventSubscription('collection:create-requested', () => setIsCreateModalOpen(true))
+    useEventSubscription('note:create-requested', (payload) => handleCreateNote(payload.collectionId))
 
     return (
         <MainLayout

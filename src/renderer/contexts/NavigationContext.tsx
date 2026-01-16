@@ -4,8 +4,9 @@
  * Manages global navigation state for the application.
  * Replaces useAppNavigation hook to ensure state is shared.
  */
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, ReactNode } from 'react'
 import { events } from '../services/EventBus'
+import { useEventSubscription } from '../hooks/useEventSubscription'
 
 export type ViewType = 'dashboard' | 'note' | 'settings'
 
@@ -45,17 +46,12 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
         else if (id === 'note' && noteId) navigateToNote(noteId)
     }, [navigateToDashboard, navigateToSettings, navigateToNote])
 
-    // Listen for EventBus requests
-    useEffect(() => {
-        const handleRequest = (payload: { view: 'dashboard' | 'settings' | 'note'; noteId?: string }) => {
-            if (payload.view === 'dashboard') navigateToDashboard()
-            else if (payload.view === 'settings') navigateToSettings()
-            else if (payload.view === 'note' && payload.noteId) navigateToNote(payload.noteId)
-        }
-
-        events.on('navigation:request', handleRequest)
-        return () => events.off('navigation:request', handleRequest)
-    }, [navigateToDashboard, navigateToSettings, navigateToNote])
+    // Listen for EventBus requests via Hook
+    useEventSubscription('navigation:request', (payload) => {
+        if (payload.view === 'dashboard') navigateToDashboard()
+        else if (payload.view === 'settings') navigateToSettings()
+        else if (payload.view === 'note' && payload.noteId) navigateToNote(payload.noteId)
+    })
 
     return (
         <NavigationContext.Provider value={{
