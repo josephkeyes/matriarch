@@ -18,7 +18,7 @@ export function ProviderCard({
     onToggle,
     children,
 }: ProviderCardProps) {
-    const [isExpanded, setIsExpanded] = useState(provider.enabled)
+    const [isExpanded, setIsExpanded] = useState(false)
 
     const handleToggle = () => {
         const newEnabled = !provider.enabled

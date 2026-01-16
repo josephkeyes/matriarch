@@ -114,10 +114,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     // Custom Sidebar Header for Expanded State
     const ExpandedSidebarHeader = (
         <div className="flex flex-col gap-2 p-3">
-            <SearchInput
-                placeholder="Search knowledge..."
-                className="bg-slate-50 dark:bg-background-dark/50"
-            />
             <div className="flex items-center justify-between px-1">
                 <div className="flex items-center gap-1">
                     <Button
@@ -158,6 +154,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                     <span className="material-icons-round text-lg">keyboard_double_arrow_left</span>
                 </Button>
             </div>
+            <SearchInput
+                placeholder="Search knowledge..."
+                className="bg-slate-50 dark:bg-background-dark/50"
+            />
         </div>
     )
 
