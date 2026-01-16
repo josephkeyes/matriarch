@@ -14,6 +14,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createClient } from "@libsql/client";
 import { PrismaClient } from "@prisma/client";
+import "fs";
+import "path";
 var __defProp2 = Object.defineProperty;
 var __export = (target, all) => {
   for (var name2 in all)
@@ -843,6 +845,13 @@ const _DatabaseClient = class _DatabaseClient {
                 )
             `);
       await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS system_settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL,
+                    updated_at DATETIME NOT NULL DEFAULT (datetime('now'))
+                )
+            `);
+      await this.prisma.$executeRawUnsafe(`
                 CREATE TABLE IF NOT EXISTS notes (
                     id TEXT PRIMARY KEY,
                     title TEXT NOT NULL,
@@ -944,41 +953,6 @@ const _DatabaseClient = class _DatabaseClient {
 };
 __publicField(_DatabaseClient, "instance");
 let DatabaseClient = _DatabaseClient;
-const DEFAULT_SETTINGS = {
-  defaultProvider: "ollama",
-  defaultModel: "llama3.2",
-  providerBaseUrl: "http://localhost:11434"
-};
-const SETTINGS_KEY = "ai_settings";
-async function getAISettings() {
-  try {
-    const db = DatabaseClient.getInstance().getClient();
-    const record = await db.systemSettings.findUnique({
-      where: { key: SETTINGS_KEY }
-    });
-    if (record == null ? void 0 : record.value) {
-      return { ...DEFAULT_SETTINGS, ...JSON.parse(record.value) };
-    }
-  } catch (error) {
-    console.warn("Failed to load AI settings, using defaults:", error);
-  }
-  return DEFAULT_SETTINGS;
-}
-async function updateAISettings(settings) {
-  const db = DatabaseClient.getInstance().getClient();
-  const current = await getAISettings();
-  const updated = { ...current, ...settings };
-  await db.systemSettings.upsert({
-    where: { key: SETTINGS_KEY },
-    create: {
-      key: SETTINGS_KEY,
-      value: JSON.stringify(updated)
-    },
-    update: {
-      value: JSON.stringify(updated)
-    }
-  });
-}
 const _AgentOrchestrator = class _AgentOrchestrator {
   constructor() {
     __publicField(this, "agents", /* @__PURE__ */ new Map());
@@ -1071,8 +1045,11 @@ const CHANNELS = {
     HEALTH: "system:health"
   },
   SETTINGS: {
+    GET_GENERAL: "settings:get-general",
+    UPDATE_GENERAL: "settings:update-general",
     GET_AI: "settings:get-ai",
-    UPDATE_AI: "settings:update-ai"
+    UPDATE_AI: "settings:update-ai",
+    RESET_DEFAULTS: "settings:reset-defaults"
   },
   AGENTS: {
     LIST: "agents:list",
@@ -1103,14 +1080,181 @@ function registerSystemApi() {
     };
   });
 }
-function registerSettingsApi() {
-  ipcMain.handle(CHANNELS.SETTINGS.GET_AI, async () => {
-    return getAISettings();
+var SettingsCategory = /* @__PURE__ */ ((SettingsCategory2) => {
+  SettingsCategory2["GENERAL"] = "general";
+  SettingsCategory2["AI"] = "ai";
+  return SettingsCategory2;
+})(SettingsCategory || {});
+const GENERAL_DEFAULTS = {
+  theme: "system",
+  language: "en",
+  startMinimized: false
+};
+const AI_DEFAULTS = {
+  defaultProvider: "ollama",
+  defaultModel: "llama3",
+  providerBaseUrl: void 0,
+  maxTokens: 4096,
+  temperature: 0.7,
+  autoNoteSummary: true,
+  backgroundMapping: false
+};
+const SETTINGS_KEYS = {
+  // General
+  GENERAL_THEME: "general.theme",
+  GENERAL_LANGUAGE: "general.language",
+  GENERAL_START_MINIMIZED: "general.startMinimized",
+  // AI
+  AI_DEFAULT_PROVIDER: "ai.defaultProvider",
+  AI_DEFAULT_MODEL: "ai.defaultModel",
+  AI_PROVIDER_BASE_URL: "ai.providerBaseUrl",
+  AI_MAX_TOKENS: "ai.maxTokens",
+  AI_TEMPERATURE: "ai.temperature",
+  AI_AUTO_NOTE_SUMMARY: "ai.autoNoteSummary",
+  AI_BACKGROUND_MAPPING: "ai.backgroundMapping"
+};
+async function getSetting(key, defaultValue) {
+  const prisma = DatabaseClient.getInstance().getClient();
+  const setting = await prisma.systemSettings.findUnique({
+    where: { key }
   });
+  if (!setting) {
+    return defaultValue;
+  }
+  const value = setting.value;
+  if (typeof defaultValue === "boolean") {
+    return value === "true";
+  }
+  if (typeof defaultValue === "number") {
+    return Number(value);
+  }
+  return value;
+}
+async function setSetting(key, value) {
+  const prisma = DatabaseClient.getInstance().getClient();
+  const stringValue = String(value);
+  await prisma.systemSettings.upsert({
+    where: { key },
+    update: { value: stringValue },
+    create: { key, value: stringValue }
+  });
+}
+async function getGeneralSettings() {
+  const [theme, language, startMinimized] = await Promise.all([
+    getSetting(SETTINGS_KEYS.GENERAL_THEME, GENERAL_DEFAULTS.theme),
+    getSetting(SETTINGS_KEYS.GENERAL_LANGUAGE, GENERAL_DEFAULTS.language),
+    getSetting(SETTINGS_KEYS.GENERAL_START_MINIMIZED, GENERAL_DEFAULTS.startMinimized)
+  ]);
+  return {
+    theme,
+    language,
+    startMinimized
+  };
+}
+async function updateGeneralSettings(updates) {
+  const operations = [];
+  if (updates.theme !== void 0) {
+    operations.push(setSetting(SETTINGS_KEYS.GENERAL_THEME, updates.theme));
+  }
+  if (updates.language !== void 0) {
+    operations.push(setSetting(SETTINGS_KEYS.GENERAL_LANGUAGE, updates.language));
+  }
+  if (updates.startMinimized !== void 0) {
+    operations.push(setSetting(SETTINGS_KEYS.GENERAL_START_MINIMIZED, updates.startMinimized));
+  }
+  await Promise.all(operations);
+}
+async function getAISettings() {
+  const [
+    defaultProvider,
+    defaultModel,
+    providerBaseUrl,
+    maxTokens,
+    temperature,
+    autoNoteSummary,
+    backgroundMapping
+  ] = await Promise.all([
+    getSetting(SETTINGS_KEYS.AI_DEFAULT_PROVIDER, AI_DEFAULTS.defaultProvider),
+    getSetting(SETTINGS_KEYS.AI_DEFAULT_MODEL, AI_DEFAULTS.defaultModel),
+    getSetting(SETTINGS_KEYS.AI_PROVIDER_BASE_URL, AI_DEFAULTS.providerBaseUrl ?? ""),
+    getSetting(SETTINGS_KEYS.AI_MAX_TOKENS, AI_DEFAULTS.maxTokens),
+    getSetting(SETTINGS_KEYS.AI_TEMPERATURE, AI_DEFAULTS.temperature),
+    getSetting(SETTINGS_KEYS.AI_AUTO_NOTE_SUMMARY, AI_DEFAULTS.autoNoteSummary),
+    getSetting(SETTINGS_KEYS.AI_BACKGROUND_MAPPING, AI_DEFAULTS.backgroundMapping)
+  ]);
+  return {
+    defaultProvider,
+    defaultModel,
+    providerBaseUrl: providerBaseUrl || void 0,
+    maxTokens,
+    temperature,
+    autoNoteSummary,
+    backgroundMapping
+  };
+}
+async function updateAISettings(updates) {
+  const operations = [];
+  if (updates.defaultProvider !== void 0) {
+    operations.push(setSetting(SETTINGS_KEYS.AI_DEFAULT_PROVIDER, updates.defaultProvider));
+  }
+  if (updates.defaultModel !== void 0) {
+    operations.push(setSetting(SETTINGS_KEYS.AI_DEFAULT_MODEL, updates.defaultModel));
+  }
+  if (updates.providerBaseUrl !== void 0) {
+    operations.push(setSetting(SETTINGS_KEYS.AI_PROVIDER_BASE_URL, updates.providerBaseUrl));
+  }
+  if (updates.maxTokens !== void 0) {
+    operations.push(setSetting(SETTINGS_KEYS.AI_MAX_TOKENS, updates.maxTokens));
+  }
+  if (updates.temperature !== void 0) {
+    operations.push(setSetting(SETTINGS_KEYS.AI_TEMPERATURE, updates.temperature));
+  }
+  if (updates.autoNoteSummary !== void 0) {
+    operations.push(setSetting(SETTINGS_KEYS.AI_AUTO_NOTE_SUMMARY, updates.autoNoteSummary));
+  }
+  if (updates.backgroundMapping !== void 0) {
+    operations.push(setSetting(SETTINGS_KEYS.AI_BACKGROUND_MAPPING, updates.backgroundMapping));
+  }
+  await Promise.all(operations);
+}
+async function resetToDefaults(category) {
+  if (!category || category === SettingsCategory.GENERAL) {
+    await updateGeneralSettings(GENERAL_DEFAULTS);
+  }
+  if (!category || category === SettingsCategory.AI) {
+    await updateAISettings(AI_DEFAULTS);
+  }
+}
+function registerSettingsApi() {
+  ipcMain.handle(
+    CHANNELS.SETTINGS.GET_GENERAL,
+    async () => {
+      return getGeneralSettings();
+    }
+  );
+  ipcMain.handle(
+    CHANNELS.SETTINGS.UPDATE_GENERAL,
+    async (_, settings) => {
+      await updateGeneralSettings(settings);
+    }
+  );
+  ipcMain.handle(
+    CHANNELS.SETTINGS.GET_AI,
+    async () => {
+      return getAISettings();
+    }
+  );
   ipcMain.handle(
     CHANNELS.SETTINGS.UPDATE_AI,
     async (_, settings) => {
       await updateAISettings(settings);
+    }
+  );
+  ipcMain.handle(
+    CHANNELS.SETTINGS.RESET_DEFAULTS,
+    async (_, category) => {
+      const cat = category === "general" ? SettingsCategory.GENERAL : category === "ai" ? SettingsCategory.AI : void 0;
+      await resetToDefaults(cat);
     }
   );
 }

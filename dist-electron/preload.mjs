@@ -5,8 +5,11 @@ const CHANNELS = {
     HEALTH: "system:health"
   },
   SETTINGS: {
+    GET_GENERAL: "settings:get-general",
+    UPDATE_GENERAL: "settings:update-general",
     GET_AI: "settings:get-ai",
-    UPDATE_AI: "settings:update-ai"
+    UPDATE_AI: "settings:update-ai",
+    RESET_DEFAULTS: "settings:reset-defaults"
   },
   AGENTS: {
     LIST: "agents:list",
@@ -33,8 +36,11 @@ const matriarch = {
     health: () => electron.ipcRenderer.invoke(CHANNELS.SYSTEM.HEALTH)
   },
   settings: {
+    getGeneral: () => electron.ipcRenderer.invoke(CHANNELS.SETTINGS.GET_GENERAL),
+    updateGeneral: (settings) => electron.ipcRenderer.invoke(CHANNELS.SETTINGS.UPDATE_GENERAL, settings),
     getAI: () => electron.ipcRenderer.invoke(CHANNELS.SETTINGS.GET_AI),
-    updateAI: (settings) => electron.ipcRenderer.invoke(CHANNELS.SETTINGS.UPDATE_AI, settings)
+    updateAI: (settings) => electron.ipcRenderer.invoke(CHANNELS.SETTINGS.UPDATE_AI, settings),
+    resetToDefaults: (category) => electron.ipcRenderer.invoke(CHANNELS.SETTINGS.RESET_DEFAULTS, category)
   },
   agents: {
     list: () => electron.ipcRenderer.invoke(CHANNELS.AGENTS.LIST),

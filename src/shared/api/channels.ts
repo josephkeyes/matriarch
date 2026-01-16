@@ -8,8 +8,11 @@ export const CHANNELS = {
         HEALTH: 'system:health',
     },
     SETTINGS: {
+        GET_GENERAL: 'settings:get-general',
+        UPDATE_GENERAL: 'settings:update-general',
         GET_AI: 'settings:get-ai',
         UPDATE_AI: 'settings:update-ai',
+        RESET_DEFAULTS: 'settings:reset-defaults',
     },
     AGENTS: {
         LIST: 'agents:list',

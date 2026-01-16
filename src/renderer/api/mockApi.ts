@@ -19,8 +19,22 @@ export const mockApi: MatriarchApi = {
         health: async () => ({ status: 'ok', timestamp: Date.now(), version: 'mock-0.0.1' }),
     },
     settings: {
-        getAI: async () => ({ defaultProvider: 'mock', defaultModel: 'mock-gpt' }),
+        getGeneral: async () => ({
+            theme: 'system' as const,
+            language: 'en',
+            startMinimized: false,
+        }),
+        updateGeneral: async (s) => console.log('Mock updateGeneral:', s),
+        getAI: async () => ({
+            defaultProvider: 'mock',
+            defaultModel: 'mock-gpt',
+            maxTokens: 4096,
+            temperature: 0.7,
+            autoNoteSummary: true,
+            backgroundMapping: false,
+        }),
         updateAI: async (s) => console.log('Mock updateAI:', s),
+        resetToDefaults: async (category) => console.log('Mock resetToDefaults:', category),
     },
     agents: {
         list: async () => [],
@@ -52,5 +66,23 @@ export const mockApi: MatriarchApi = {
         delete: async (id) => {
             collections = collections.filter(c => c.id !== id)
         }
+    },
+    notes: {
+        create: async (data) => ({
+            id: Math.random().toString(36).substr(2, 9),
+            title: data.title,
+            content: data.content || '',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        }),
+        read: async () => null,
+        update: async (id, data) => ({
+            id,
+            title: data.title || 'Untitled',
+            content: data.content || '',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        }),
+        delete: async () => { },
     }
 }
