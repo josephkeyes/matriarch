@@ -9,7 +9,7 @@ var __privateGet = (obj, member, getter) => (__accessCheck(obj, member, "read fr
 var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
 var __privateSet = (obj, member, value, setter) => (__accessCheck(obj, member, "write to private field"), setter ? setter.call(obj, value) : member.set(obj, value), value);
 var _a, _unlockParent, _b, _config, _options, _c;
-import { app, ipcMain, BrowserWindow } from "electron";
+import { app, globalShortcut, BrowserWindow, ipcMain } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createClient } from "@libsql/client";
@@ -942,6 +942,31 @@ const _DatabaseClient = class _DatabaseClient {
                     FOREIGN KEY (provider_id) REFERENCES ai_providers(id) ON DELETE CASCADE
                 )
             `);
+      await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS commands (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    type TEXT NOT NULL,
+                    action_type TEXT NOT NULL,
+                    action_payload TEXT,
+                    enabled INTEGER NOT NULL DEFAULT 1,
+                    is_built_in INTEGER NOT NULL DEFAULT 0,
+                    source TEXT NOT NULL DEFAULT 'system',
+                    category TEXT,
+                    created_at DATETIME NOT NULL DEFAULT (datetime('now')),
+                    updated_at DATETIME NOT NULL DEFAULT (datetime('now'))
+                )
+            `);
+      await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS command_hotkeys (
+                    id TEXT PRIMARY KEY,
+                    command_id TEXT NOT NULL,
+                    accelerator TEXT NOT NULL UNIQUE,
+                    is_global INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY (command_id) REFERENCES commands(id) ON DELETE CASCADE
+                )
+            `);
       const timestamp = BigInt(Date.now());
       await this.prisma.startupEvent.create({
         data: {
@@ -1057,6 +1082,608 @@ const _AgentOrchestrator = class _AgentOrchestrator {
 };
 __publicField(_AgentOrchestrator, "instance");
 let AgentOrchestrator = _AgentOrchestrator;
+const BUILT_IN_COMMANDS = [
+  // =========================================================================
+  // Navigation Commands
+  // =========================================================================
+  {
+    id: "nav.dashboard",
+    name: "Go to Dashboard",
+    description: "Navigate to the main dashboard view",
+    type: "navigation",
+    actionType: "navigate",
+    actionPayload: { route: "dashboard" },
+    category: "Navigation",
+    source: "system",
+    isBuiltIn: true,
+    defaultHotkey: "CommandOrControl+Shift+D",
+    defaultIsGlobal: false
+  },
+  {
+    id: "nav.settings",
+    name: "Open Settings",
+    description: "Open the application settings",
+    type: "navigation",
+    actionType: "navigate",
+    actionPayload: { route: "settings" },
+    category: "Navigation",
+    source: "system",
+    isBuiltIn: true,
+    defaultHotkey: "CommandOrControl+,",
+    defaultIsGlobal: false
+  },
+  // =========================================================================
+  // Application Commands
+  // =========================================================================
+  {
+    id: "app.command-palette",
+    name: "Open Command Palette",
+    description: "Open the command palette to search and execute commands",
+    type: "application",
+    actionType: "execute",
+    actionPayload: { params: { action: "open-palette" } },
+    category: "Application",
+    source: "system",
+    isBuiltIn: true,
+    defaultHotkey: "CommandOrControl+Shift+P",
+    defaultIsGlobal: true
+  },
+  {
+    id: "app.toggle-theme",
+    name: "Toggle Theme",
+    description: "Switch between light and dark theme",
+    type: "application",
+    actionType: "toggle",
+    actionPayload: { params: { action: "toggle-theme" } },
+    category: "Application",
+    source: "system",
+    isBuiltIn: true
+  },
+  {
+    id: "app.toggle-left-sidebar",
+    name: "Toggle Left Sidebar",
+    description: "Show or hide the left sidebar",
+    type: "application",
+    actionType: "toggle",
+    actionPayload: { params: { action: "toggle-left-sidebar" } },
+    category: "Application",
+    source: "system",
+    isBuiltIn: true,
+    defaultHotkey: "CommandOrControl+\\",
+    defaultIsGlobal: false
+  },
+  {
+    id: "app.toggle-right-sidebar",
+    name: "Toggle Right Sidebar",
+    description: "Show or hide the right sidebar",
+    type: "application",
+    actionType: "toggle",
+    actionPayload: { params: { action: "toggle-right-sidebar" } },
+    category: "Application",
+    source: "system",
+    isBuiltIn: true,
+    defaultHotkey: "CommandOrControl+Shift+\\",
+    defaultIsGlobal: false
+  },
+  // =========================================================================
+  // CRUD Commands
+  // =========================================================================
+  {
+    id: "crud.new-collection",
+    name: "Create New Collection",
+    description: "Create a new collection to organize notes",
+    type: "crud",
+    actionType: "execute",
+    actionPayload: { params: { action: "create-collection" } },
+    category: "Collections",
+    source: "system",
+    isBuiltIn: true,
+    defaultHotkey: "CommandOrControl+Shift+C",
+    defaultIsGlobal: false
+  },
+  {
+    id: "crud.new-note",
+    name: "Create New Note",
+    description: "Create a new note",
+    type: "crud",
+    actionType: "execute",
+    actionPayload: { params: { action: "create-note" } },
+    category: "Notes",
+    source: "system",
+    isBuiltIn: true,
+    defaultHotkey: "CommandOrControl+N",
+    defaultIsGlobal: false
+  }
+];
+const _CommandRegistry = class _CommandRegistry {
+  constructor() {
+    __publicField(this, "initialized", false);
+  }
+  static getInstance() {
+    if (!_CommandRegistry.instance) {
+      _CommandRegistry.instance = new _CommandRegistry();
+    }
+    return _CommandRegistry.instance;
+  }
+  /**
+   * Initialize the command registry.
+   * Loads commands from database and seeds built-in commands if needed.
+   */
+  async initialize() {
+    if (this.initialized) {
+      console.log("[CommandRegistry] Already initialized");
+      return;
+    }
+    console.log("[CommandRegistry] Initializing...");
+    await this.seedBuiltInCommands();
+    this.initialized = true;
+    console.log("[CommandRegistry] Initialization complete");
+  }
+  /**
+   * Seed built-in commands into the database if they don't exist.
+   */
+  async seedBuiltInCommands() {
+    const prisma = DatabaseClient.getInstance().getClient();
+    for (const cmd of BUILT_IN_COMMANDS) {
+      const existing = await prisma.command.findUnique({
+        where: { id: cmd.id }
+      });
+      if (!existing) {
+        console.log(`[CommandRegistry] Seeding built-in command: ${cmd.id}`);
+        await this.createCommandFromBuiltIn(cmd);
+      }
+    }
+  }
+  /**
+   * Create a command from a built-in definition.
+   */
+  async createCommandFromBuiltIn(cmd) {
+    const prisma = DatabaseClient.getInstance().getClient();
+    const command = await prisma.command.create({
+      data: {
+        id: cmd.id,
+        name: cmd.name,
+        description: cmd.description,
+        type: cmd.type,
+        actionType: cmd.actionType,
+        actionPayload: cmd.actionPayload ? JSON.stringify(cmd.actionPayload) : null,
+        enabled: true,
+        isBuiltIn: true,
+        source: cmd.source ?? "system",
+        category: cmd.category
+      }
+    });
+    if (cmd.defaultHotkey) {
+      await prisma.commandHotkey.create({
+        data: {
+          commandId: command.id,
+          accelerator: cmd.defaultHotkey,
+          isGlobal: cmd.defaultIsGlobal ?? false
+        }
+      });
+    }
+  }
+  /**
+   * List all commands, optionally filtered by type or enabled state.
+   */
+  async listCommands(filter) {
+    const prisma = DatabaseClient.getInstance().getClient();
+    const where = {};
+    if (filter == null ? void 0 : filter.type) where.type = filter.type;
+    if ((filter == null ? void 0 : filter.enabled) !== void 0) where.enabled = filter.enabled;
+    const commands = await prisma.command.findMany({
+      where,
+      include: { hotkeys: true },
+      orderBy: [
+        { category: "asc" },
+        { name: "asc" }
+      ]
+    });
+    return commands.map(this.mapCommandToDefinition);
+  }
+  /**
+   * Get a single command by ID.
+   */
+  async getCommand(id) {
+    const prisma = DatabaseClient.getInstance().getClient();
+    const command = await prisma.command.findUnique({
+      where: { id },
+      include: { hotkeys: true }
+    });
+    return command ? this.mapCommandToDefinition(command) : null;
+  }
+  /**
+   * Create a new user command.
+   */
+  async createCommand(input) {
+    const prisma = DatabaseClient.getInstance().getClient();
+    const command = await prisma.command.create({
+      data: {
+        name: input.name,
+        description: input.description,
+        type: input.type,
+        actionType: input.actionType,
+        actionPayload: input.actionPayload ? JSON.stringify(input.actionPayload) : null,
+        enabled: true,
+        isBuiltIn: false,
+        source: input.source ?? "user",
+        category: input.category
+      },
+      include: { hotkeys: true }
+    });
+    return this.mapCommandToDefinition(command);
+  }
+  /**
+   * Update an existing command.
+   */
+  async updateCommand(id, input) {
+    const prisma = DatabaseClient.getInstance().getClient();
+    const updateData = {};
+    if (input.name !== void 0) updateData.name = input.name;
+    if (input.description !== void 0) updateData.description = input.description;
+    if (input.enabled !== void 0) updateData.enabled = input.enabled;
+    if (input.actionPayload !== void 0) {
+      updateData.actionPayload = JSON.stringify(input.actionPayload);
+    }
+    if (input.category !== void 0) updateData.category = input.category;
+    const command = await prisma.command.update({
+      where: { id },
+      data: updateData,
+      include: { hotkeys: true }
+    });
+    return this.mapCommandToDefinition(command);
+  }
+  /**
+   * Delete a command. Only user/plugin commands can be deleted.
+   */
+  async deleteCommand(id) {
+    const prisma = DatabaseClient.getInstance().getClient();
+    const command = await prisma.command.findUnique({ where: { id } });
+    if (!command) {
+      throw new Error(`Command not found: ${id}`);
+    }
+    if (command.isBuiltIn) {
+      throw new Error("Cannot delete built-in commands");
+    }
+    await prisma.command.delete({ where: { id } });
+  }
+  /**
+   * Add a hotkey to a command.
+   */
+  async addHotkey(commandId, accelerator, isGlobal = false) {
+    const prisma = DatabaseClient.getInstance().getClient();
+    const existing = await prisma.commandHotkey.findUnique({
+      where: { accelerator }
+    });
+    if (existing) {
+      throw new Error(`Hotkey ${accelerator} is already assigned to another command`);
+    }
+    const hotkey = await prisma.commandHotkey.create({
+      data: {
+        commandId,
+        accelerator,
+        isGlobal
+      }
+    });
+    return {
+      id: hotkey.id,
+      accelerator: hotkey.accelerator,
+      isGlobal: hotkey.isGlobal
+    };
+  }
+  /**
+   * Remove a hotkey.
+   */
+  async removeHotkey(hotkeyId) {
+    const prisma = DatabaseClient.getInstance().getClient();
+    await prisma.commandHotkey.delete({ where: { id: hotkeyId } });
+  }
+  /**
+   * Update a hotkey's accelerator.
+   */
+  async updateHotkey(hotkeyId, accelerator) {
+    const prisma = DatabaseClient.getInstance().getClient();
+    const existing = await prisma.commandHotkey.findFirst({
+      where: {
+        accelerator,
+        NOT: { id: hotkeyId }
+      }
+    });
+    if (existing) {
+      throw new Error(`Hotkey ${accelerator} is already assigned to another command`);
+    }
+    const hotkey = await prisma.commandHotkey.update({
+      where: { id: hotkeyId },
+      data: { accelerator }
+    });
+    return {
+      id: hotkey.id,
+      accelerator: hotkey.accelerator,
+      isGlobal: hotkey.isGlobal
+    };
+  }
+  /**
+   * Execute a command.
+   */
+  async executeCommand(id, context) {
+    var _a2, _b2, _c2;
+    const command = await this.getCommand(id);
+    if (!command) {
+      return { success: false, error: `Command not found: ${id}` };
+    }
+    if (!command.enabled) {
+      return { success: false, error: `Command is disabled: ${id}` };
+    }
+    console.log(`[CommandRegistry] Executing command: ${command.name} (${id})`);
+    try {
+      switch (command.actionType) {
+        case "navigate":
+          return {
+            success: true,
+            output: { action: "navigate", route: (_a2 = command.actionPayload) == null ? void 0 : _a2.route }
+          };
+        case "toggle":
+          return {
+            success: true,
+            output: { action: "toggle", params: (_b2 = command.actionPayload) == null ? void 0 : _b2.params }
+          };
+        case "execute":
+          return {
+            success: true,
+            output: { action: "execute", params: (_c2 = command.actionPayload) == null ? void 0 : _c2.params }
+          };
+        case "agent-execute":
+          return await this.executeAgentCommand(command, context);
+        default:
+          return { success: false, error: `Unknown actionType: ${command.actionType}` };
+      }
+    } catch (error) {
+      console.error(`[CommandRegistry] Command execution failed:`, error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+  /**
+   * Execute an agent-based command.
+   */
+  async executeAgentCommand(command, context) {
+    var _a2;
+    const agentId = (_a2 = command.actionPayload) == null ? void 0 : _a2.agentId;
+    if (!agentId) {
+      return { success: false, error: "No agentId specified in command payload" };
+    }
+    const orchestrator = AgentOrchestrator.getInstance();
+    const result = await orchestrator.executeAgent(agentId, {
+      noteId: context == null ? void 0 : context.noteId,
+      selectedText: context == null ? void 0 : context.selectedText,
+      ...context == null ? void 0 : context.params
+    });
+    return {
+      success: result.success,
+      error: result.error,
+      output: result.output
+    };
+  }
+  /**
+   * Map a Prisma command to a CommandDefinition.
+   */
+  mapCommandToDefinition(command) {
+    let parsedPayload;
+    if (command.actionPayload) {
+      try {
+        parsedPayload = JSON.parse(command.actionPayload);
+      } catch {
+        console.warn(`[CommandRegistry] Failed to parse actionPayload for ${command.id}`);
+      }
+    }
+    return {
+      id: command.id,
+      name: command.name,
+      description: command.description ?? void 0,
+      type: command.type,
+      actionType: command.actionType,
+      actionPayload: parsedPayload,
+      enabled: command.enabled,
+      isBuiltIn: command.isBuiltIn,
+      source: command.source,
+      category: command.category ?? void 0,
+      hotkeys: command.hotkeys.map((h) => ({
+        id: h.id,
+        accelerator: h.accelerator,
+        isGlobal: h.isGlobal
+      }))
+    };
+  }
+};
+__publicField(_CommandRegistry, "instance");
+let CommandRegistry = _CommandRegistry;
+const _HotkeyManager = class _HotkeyManager {
+  constructor() {
+    __publicField(this, "registeredAccelerators", /* @__PURE__ */ new Map());
+    // accelerator -> commandId
+    __publicField(this, "initialized", false);
+  }
+  static getInstance() {
+    if (!_HotkeyManager.instance) {
+      _HotkeyManager.instance = new _HotkeyManager();
+    }
+    return _HotkeyManager.instance;
+  }
+  /**
+   * Initialize the hotkey manager.
+   * Loads all global hotkeys from commands and registers them.
+   */
+  async initialize() {
+    if (this.initialized) {
+      console.log("[HotkeyManager] Already initialized");
+      return;
+    }
+    console.log("[HotkeyManager] Initializing...");
+    await this.registerAllGlobalHotkeys();
+    this.initialized = true;
+    console.log("[HotkeyManager] Initialization complete");
+  }
+  /**
+   * Register all global hotkeys from enabled commands.
+   */
+  async registerAllGlobalHotkeys() {
+    const registry = CommandRegistry.getInstance();
+    const commands = await registry.listCommands({ enabled: true });
+    for (const command of commands) {
+      for (const hotkey of command.hotkeys) {
+        if (hotkey.isGlobal) {
+          this.registerHotkey(command.id, hotkey.accelerator);
+        }
+      }
+    }
+    console.log(`[HotkeyManager] Registered ${this.registeredAccelerators.size} global hotkeys`);
+  }
+  /**
+   * Register a global hotkey for a command.
+   */
+  registerHotkey(commandId, accelerator) {
+    if (this.registeredAccelerators.has(accelerator)) {
+      this.unregisterHotkey(accelerator);
+    }
+    try {
+      const success = globalShortcut.register(accelerator, () => {
+        this.handleHotkeyTriggered(commandId, accelerator);
+      });
+      if (success) {
+        this.registeredAccelerators.set(accelerator, commandId);
+        console.log(`[HotkeyManager] Registered hotkey: ${accelerator} -> ${commandId}`);
+        return true;
+      } else {
+        console.warn(`[HotkeyManager] Failed to register hotkey: ${accelerator}`);
+        return false;
+      }
+    } catch (error) {
+      console.error(`[HotkeyManager] Error registering hotkey ${accelerator}:`, error);
+      return false;
+    }
+  }
+  /**
+   * Unregister a global hotkey.
+   */
+  unregisterHotkey(accelerator) {
+    if (this.registeredAccelerators.has(accelerator)) {
+      try {
+        globalShortcut.unregister(accelerator);
+        this.registeredAccelerators.delete(accelerator);
+        console.log(`[HotkeyManager] Unregistered hotkey: ${accelerator}`);
+      } catch (error) {
+        console.error(`[HotkeyManager] Error unregistering hotkey ${accelerator}:`, error);
+      }
+    }
+  }
+  /**
+   * Unregister all global hotkeys.
+   */
+  unregisterAll() {
+    console.log("[HotkeyManager] Unregistering all hotkeys");
+    globalShortcut.unregisterAll();
+    this.registeredAccelerators.clear();
+  }
+  /**
+   * Check if an accelerator is valid Electron format.
+   */
+  isAcceleratorValid(accelerator) {
+    const modifiers = [
+      "Command",
+      "Cmd",
+      "Control",
+      "Ctrl",
+      "CommandOrControl",
+      "CmdOrCtrl",
+      "Alt",
+      "Option",
+      "AltGr",
+      "Shift",
+      "Super",
+      "Meta"
+    ];
+    const parts = accelerator.split("+");
+    if (parts.length === 0) return false;
+    const key = parts[parts.length - 1];
+    if (!key || key.length === 0) return false;
+    for (let i = 0; i < parts.length - 1; i++) {
+      if (!modifiers.includes(parts[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+  /**
+   * Check if an accelerator is available (not already registered).
+   */
+  isAcceleratorAvailable(accelerator) {
+    return !this.registeredAccelerators.has(accelerator);
+  }
+  /**
+   * Get the command ID for a registered accelerator.
+   */
+  getCommandForAccelerator(accelerator) {
+    return this.registeredAccelerators.get(accelerator);
+  }
+  /**
+   * Handle when a hotkey is triggered.
+   */
+  async handleHotkeyTriggered(commandId, accelerator) {
+    console.log(`[HotkeyManager] Hotkey triggered: ${accelerator} -> ${commandId}`);
+    const registry = CommandRegistry.getInstance();
+    const result = await registry.executeCommand(commandId);
+    if (result.success) {
+      this.sendToRenderer("command:executed", {
+        commandId,
+        output: result.output
+      });
+    } else {
+      console.error(`[HotkeyManager] Command execution failed: ${result.error}`);
+      this.sendToRenderer("command:error", {
+        commandId,
+        error: result.error
+      });
+    }
+  }
+  /**
+   * Send a message to the focused renderer window.
+   */
+  sendToRenderer(channel, data) {
+    const focusedWindow = BrowserWindow.getFocusedWindow();
+    if (focusedWindow) {
+      focusedWindow.webContents.send(channel, data);
+    } else {
+      const allWindows = BrowserWindow.getAllWindows();
+      for (const win2 of allWindows) {
+        win2.webContents.send(channel, data);
+      }
+    }
+  }
+  /**
+   * Refresh hotkeys for a specific command.
+   * Call this after updating a command's hotkeys.
+   */
+  async refreshCommandHotkeys(commandId) {
+    for (const [accelerator, cmdId] of this.registeredAccelerators.entries()) {
+      if (cmdId === commandId) {
+        this.unregisterHotkey(accelerator);
+      }
+    }
+    const registry = CommandRegistry.getInstance();
+    const command = await registry.getCommand(commandId);
+    if (command && command.enabled) {
+      for (const hotkey of command.hotkeys) {
+        if (hotkey.isGlobal) {
+          this.registerHotkey(commandId, hotkey.accelerator);
+        }
+      }
+    }
+  }
+};
+__publicField(_HotkeyManager, "instance");
+let HotkeyManager = _HotkeyManager;
 const CHANNELS = {
   SYSTEM: {
     HEALTH: "system:health"
@@ -1092,6 +1719,17 @@ const CHANNELS = {
     UPDATE_CONFIG: "ai-providers:update-config",
     CHECK_AVAILABILITY: "ai-providers:check-availability",
     GET_MODELS: "ai-providers:get-models"
+  },
+  COMMANDS: {
+    LIST: "commands:list",
+    GET: "commands:get",
+    CREATE: "commands:create",
+    UPDATE: "commands:update",
+    DELETE: "commands:delete",
+    EXECUTE: "commands:execute",
+    ADD_HOTKEY: "commands:add-hotkey",
+    REMOVE_HOTKEY: "commands:remove-hotkey",
+    UPDATE_HOTKEY: "commands:update-hotkey"
   }
   // Future channels:
   // TASKS: { CREATE: 'tasks:create', ... }
@@ -1584,6 +2222,88 @@ function registerAIProvidersHandlers() {
     return [];
   });
 }
+function registerCommandsHandlers() {
+  const registry = CommandRegistry.getInstance();
+  const hotkeyManager = HotkeyManager.getInstance();
+  ipcMain.handle(
+    CHANNELS.COMMANDS.LIST,
+    async (_, filter) => {
+      const commands = await registry.listCommands(filter);
+      return commands;
+    }
+  );
+  ipcMain.handle(
+    CHANNELS.COMMANDS.GET,
+    async (_, id) => {
+      return await registry.getCommand(id);
+    }
+  );
+  ipcMain.handle(
+    CHANNELS.COMMANDS.CREATE,
+    async (_, data) => {
+      return await registry.createCommand({
+        name: data.name,
+        description: data.description,
+        type: data.type,
+        actionType: data.actionType,
+        actionPayload: data.actionPayload,
+        category: data.category
+      });
+    }
+  );
+  ipcMain.handle(
+    CHANNELS.COMMANDS.UPDATE,
+    async (_, id, data) => {
+      const command = await registry.updateCommand(id, data);
+      if (data.enabled !== void 0) {
+        await hotkeyManager.refreshCommandHotkeys(id);
+      }
+      return command;
+    }
+  );
+  ipcMain.handle(
+    CHANNELS.COMMANDS.DELETE,
+    async (_, id) => {
+      const command = await registry.getCommand(id);
+      if (command) {
+        for (const hotkey of command.hotkeys) {
+          if (hotkey.isGlobal) {
+            hotkeyManager.unregisterHotkey(hotkey.accelerator);
+          }
+        }
+      }
+      await registry.deleteCommand(id);
+    }
+  );
+  ipcMain.handle(
+    CHANNELS.COMMANDS.EXECUTE,
+    async (_, id, context) => {
+      return await registry.executeCommand(id, context);
+    }
+  );
+  ipcMain.handle(
+    CHANNELS.COMMANDS.ADD_HOTKEY,
+    async (_, commandId, accelerator, isGlobal = false) => {
+      const hotkey = await registry.addHotkey(commandId, accelerator, isGlobal);
+      if (isGlobal) {
+        hotkeyManager.registerHotkey(commandId, accelerator);
+      }
+      return hotkey;
+    }
+  );
+  ipcMain.handle(
+    CHANNELS.COMMANDS.REMOVE_HOTKEY,
+    async (_, hotkeyId) => {
+      await registry.removeHotkey(hotkeyId);
+    }
+  );
+  ipcMain.handle(
+    CHANNELS.COMMANDS.UPDATE_HOTKEY,
+    async (_, hotkeyId, accelerator) => {
+      return await registry.updateHotkey(hotkeyId, accelerator);
+    }
+  );
+}
 function registerAllHandlers() {
   console.log("Registering API handlers...");
   registerSystemApi();
@@ -1592,6 +2312,7 @@ function registerAllHandlers() {
   registerCollectionsApi();
   registerNotesApi();
   registerAIProvidersHandlers();
+  registerCommandsHandlers();
   console.log("API handlers registered successfully");
 }
 const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
@@ -1629,6 +2350,9 @@ app.on("activate", () => {
     createWindow();
   }
 });
+app.on("will-quit", () => {
+  HotkeyManager.getInstance().unregisterAll();
+});
 app.whenReady().then(async () => {
   console.log("App ready, initializing systems...");
   registerAllHandlers();
@@ -1644,6 +2368,20 @@ app.whenReady().then(async () => {
     console.log("Agent Orchestrator initialized");
   } catch (error) {
     console.error("Failed to initialize orchestrator:", error);
+  }
+  try {
+    const commandRegistry = CommandRegistry.getInstance();
+    await commandRegistry.initialize();
+    console.log("Command Registry initialized");
+  } catch (error) {
+    console.error("Failed to initialize command registry:", error);
+  }
+  try {
+    const hotkeyManager = HotkeyManager.getInstance();
+    await hotkeyManager.initialize();
+    console.log("Hotkey Manager initialized");
+  } catch (error) {
+    console.error("Failed to initialize hotkey manager:", error);
   }
   createWindow();
 });

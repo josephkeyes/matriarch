@@ -35,6 +35,17 @@ const CHANNELS = {
     UPDATE_CONFIG: "ai-providers:update-config",
     CHECK_AVAILABILITY: "ai-providers:check-availability",
     GET_MODELS: "ai-providers:get-models"
+  },
+  COMMANDS: {
+    LIST: "commands:list",
+    GET: "commands:get",
+    CREATE: "commands:create",
+    UPDATE: "commands:update",
+    DELETE: "commands:delete",
+    EXECUTE: "commands:execute",
+    ADD_HOTKEY: "commands:add-hotkey",
+    REMOVE_HOTKEY: "commands:remove-hotkey",
+    UPDATE_HOTKEY: "commands:update-hotkey"
   }
   // Future channels:
   // TASKS: { CREATE: 'tasks:create', ... }
@@ -74,6 +85,17 @@ const matriarch = {
     updateConfig: (providerId, config) => electron.ipcRenderer.invoke(CHANNELS.AI_PROVIDERS.UPDATE_CONFIG, providerId, config),
     checkAvailability: (providerId) => electron.ipcRenderer.invoke(CHANNELS.AI_PROVIDERS.CHECK_AVAILABILITY, providerId),
     getModels: (providerId) => electron.ipcRenderer.invoke(CHANNELS.AI_PROVIDERS.GET_MODELS, providerId)
+  },
+  commands: {
+    list: (filter) => electron.ipcRenderer.invoke(CHANNELS.COMMANDS.LIST, filter),
+    get: (id) => electron.ipcRenderer.invoke(CHANNELS.COMMANDS.GET, id),
+    create: (data) => electron.ipcRenderer.invoke(CHANNELS.COMMANDS.CREATE, data),
+    update: (id, data) => electron.ipcRenderer.invoke(CHANNELS.COMMANDS.UPDATE, id, data),
+    delete: (id) => electron.ipcRenderer.invoke(CHANNELS.COMMANDS.DELETE, id),
+    execute: (id, context) => electron.ipcRenderer.invoke(CHANNELS.COMMANDS.EXECUTE, id, context),
+    addHotkey: (commandId, accelerator, isGlobal) => electron.ipcRenderer.invoke(CHANNELS.COMMANDS.ADD_HOTKEY, commandId, accelerator, isGlobal),
+    removeHotkey: (hotkeyId) => electron.ipcRenderer.invoke(CHANNELS.COMMANDS.REMOVE_HOTKEY, hotkeyId),
+    updateHotkey: (hotkeyId, accelerator) => electron.ipcRenderer.invoke(CHANNELS.COMMANDS.UPDATE_HOTKEY, hotkeyId, accelerator)
   }
 };
 electron.contextBridge.exposeInMainWorld("matriarch", matriarch);

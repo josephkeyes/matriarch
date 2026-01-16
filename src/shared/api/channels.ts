@@ -39,6 +39,17 @@ export const CHANNELS = {
         CHECK_AVAILABILITY: 'ai-providers:check-availability',
         GET_MODELS: 'ai-providers:get-models',
     },
+    COMMANDS: {
+        LIST: 'commands:list',
+        GET: 'commands:get',
+        CREATE: 'commands:create',
+        UPDATE: 'commands:update',
+        DELETE: 'commands:delete',
+        EXECUTE: 'commands:execute',
+        ADD_HOTKEY: 'commands:add-hotkey',
+        REMOVE_HOTKEY: 'commands:remove-hotkey',
+        UPDATE_HOTKEY: 'commands:update-hotkey',
+    },
     // Future channels:
     // TASKS: { CREATE: 'tasks:create', ... }
 } as const

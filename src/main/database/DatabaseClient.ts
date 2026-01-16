@@ -177,6 +177,34 @@ export class DatabaseClient {
                 )
             `)
 
+            // Command Palette tables
+            await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS commands (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    type TEXT NOT NULL,
+                    action_type TEXT NOT NULL,
+                    action_payload TEXT,
+                    enabled INTEGER NOT NULL DEFAULT 1,
+                    is_built_in INTEGER NOT NULL DEFAULT 0,
+                    source TEXT NOT NULL DEFAULT 'system',
+                    category TEXT,
+                    created_at DATETIME NOT NULL DEFAULT (datetime('now')),
+                    updated_at DATETIME NOT NULL DEFAULT (datetime('now'))
+                )
+            `)
+
+            await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS command_hotkeys (
+                    id TEXT PRIMARY KEY,
+                    command_id TEXT NOT NULL,
+                    accelerator TEXT NOT NULL UNIQUE,
+                    is_global INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY (command_id) REFERENCES commands(id) ON DELETE CASCADE
+                )
+            `)
+
             const timestamp = BigInt(Date.now())
             await this.prisma.startupEvent.create({
                 data: {

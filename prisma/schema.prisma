@@ -188,3 +188,38 @@ model AIProviderConfig {
   @@map("ai_provider_configs")
 }
 
+// ============================================================================
+// Commands & Hotkeys (Command Palette Feature)
+// ============================================================================
+
+model Command {
+  id            String   @id @default(uuid())
+  name          String
+  description   String?
+  type          String   // 'navigation' | 'crud' | 'application' | 'agent'
+  actionType    String   @map("action_type") // 'navigate' | 'execute' | 'toggle' | 'agent-execute'
+  actionPayload String?  @map("action_payload") // JSON: { route?: string, agentId?: string, params?: any }
+  enabled       Boolean  @default(true)
+  isBuiltIn     Boolean  @default(false) @map("is_built_in")
+  source        String   @default("system") // 'system' | 'user' | 'plugin'
+  category      String?  // For grouping in UI (e.g., 'Navigation', 'Notes', 'AI')
+  
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  
+  hotkeys       CommandHotkey[]
+  
+  @@map("commands")
+}
+
+model CommandHotkey {
+  id          String   @id @default(uuid())
+  commandId   String   @map("command_id")
+  accelerator String   // Electron accelerator format: 'CommandOrControl+Shift+P'
+  isGlobal    Boolean  @default(false) @map("is_global")
+  
+  command     Command  @relation(fields: [commandId], references: [id], onDelete: Cascade)
+  
+  @@unique([accelerator]) // Prevent duplicate hotkey bindings
+  @@map("command_hotkeys")
+}
