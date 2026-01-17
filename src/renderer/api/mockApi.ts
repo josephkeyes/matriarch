@@ -15,6 +15,14 @@ let collections: Collection[] = [
 ]
 
 export const mockApi: MatriarchApi = {
+    aiActions: {
+        list: async () => [],
+        create: async () => ({} as any),
+        update: async () => ({} as any),
+        delete: async () => { },
+        execute: async () => ({ success: false }),
+        getLogs: async () => []
+    },
     system: {
         health: async () => ({ status: 'ok', timestamp: Date.now(), version: 'mock-0.0.1' }),
     },

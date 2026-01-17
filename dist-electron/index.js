@@ -967,6 +967,36 @@ const _DatabaseClient = class _DatabaseClient {
                     FOREIGN KEY (command_id) REFERENCES commands(id) ON DELETE CASCADE
                 )
             `);
+      await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS ai_actions (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    provider_id TEXT NOT NULL,
+                    model_id TEXT NOT NULL,
+                    system_prompt TEXT NOT NULL,
+                    user_prompt_template TEXT NOT NULL,
+                    output_behavior TEXT NOT NULL DEFAULT 'replace',
+                    enabled INTEGER NOT NULL DEFAULT 1,
+                    created_at DATETIME NOT NULL DEFAULT (datetime('now')),
+                    updated_at DATETIME NOT NULL DEFAULT (datetime('now'))
+                )
+            `);
+      await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS ai_action_logs (
+                    id TEXT PRIMARY KEY,
+                    action_id TEXT NOT NULL,
+                    timestamp DATETIME NOT NULL DEFAULT (datetime('now')),
+                    provider TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    tokens_in INTEGER,
+                    tokens_out INTEGER,
+                    duration_ms INTEGER NOT NULL,
+                    status TEXT NOT NULL,
+                    error TEXT,
+                    FOREIGN KEY (action_id) REFERENCES ai_actions(id) ON DELETE CASCADE
+                )
+            `);
       const timestamp = BigInt(Date.now());
       await this.prisma.startupEvent.create({
         data: {
@@ -1722,6 +1752,14 @@ const CHANNELS = {
     CHECK_AVAILABILITY: "ai-providers:check-availability",
     GET_MODELS: "ai-providers:get-models"
   },
+  AI_ACTIONS: {
+    LIST: "ai-actions:list",
+    CREATE: "ai-actions:create",
+    UPDATE: "ai-actions:update",
+    DELETE: "ai-actions:delete",
+    EXECUTE: "ai-actions:execute",
+    GET_LOGS: "ai-actions:get-logs"
+  },
   COMMANDS: {
     LIST: "commands:list",
     GET: "commands:get",
@@ -2190,6 +2228,38 @@ async function getOllamaModels(config) {
   const result = await checkOllamaAvailability(config ?? null);
   return result.models ?? [];
 }
+async function generateCompletion(request) {
+  const { providerId, modelId, systemPrompt, userPrompt } = request;
+  const config = await getProviderConfig(providerId);
+  switch (providerId) {
+    case AIProviderType.OLLAMA:
+      return generateOllamaCompletion(config, modelId, systemPrompt, userPrompt);
+    default:
+      throw new Error(`Provider ${providerId} does not support completion generation`);
+  }
+}
+async function generateOllamaCompletion(config, model, systemPrompt, userPrompt) {
+  const baseUrl = (config == null ? void 0 : config.baseUrl) ?? OLLAMA_DEFAULTS.baseUrl;
+  const response = await fetch(`${baseUrl}/api/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      system: systemPrompt,
+      prompt: userPrompt,
+      stream: false
+    })
+  });
+  if (!response.ok) {
+    throw new Error(`Ollama generation failed: ${response.statusText}`);
+  }
+  const data = await response.json();
+  return {
+    content: data.response,
+    tokensIn: data.prompt_eval_count,
+    tokensOut: data.eval_count
+  };
+}
 function registerAIProvidersHandlers() {
   ipcMain.handle(CHANNELS.AI_PROVIDERS.LIST, async () => {
     return getProviders();
@@ -2222,6 +2292,138 @@ function registerAIProvidersHandlers() {
       return getOllamaModels(config);
     }
     return [];
+  });
+}
+async function listActions() {
+  const prisma = DatabaseClient.getInstance().getClient();
+  const actions = await prisma.aIAction.findMany({
+    orderBy: { name: "asc" }
+  });
+  return actions.map((action) => ({
+    ...action,
+    description: action.description || void 0,
+    outputBehavior: action.outputBehavior
+    // Cast string to union type
+  }));
+}
+async function createAction(data) {
+  const prisma = DatabaseClient.getInstance().getClient();
+  const action = await prisma.aIAction.create({
+    data: {
+      ...data,
+      enabled: true
+    }
+  });
+  return {
+    ...action,
+    description: action.description || void 0,
+    outputBehavior: action.outputBehavior
+  };
+}
+async function updateAction(id, data) {
+  const prisma = DatabaseClient.getInstance().getClient();
+  const action = await prisma.aIAction.update({
+    where: { id },
+    data
+  });
+  return {
+    ...action,
+    description: action.description || void 0,
+    outputBehavior: action.outputBehavior
+  };
+}
+async function deleteAction(id) {
+  const prisma = DatabaseClient.getInstance().getClient();
+  await prisma.aIAction.delete({
+    where: { id }
+  });
+}
+async function executeAction(actionId, selection) {
+  const prisma = DatabaseClient.getInstance().getClient();
+  const startTime = Date.now();
+  const action = await prisma.aIAction.findUnique({
+    where: { id: actionId }
+  });
+  if (!action) {
+    return { success: false, error: "Action not found" };
+  }
+  let userPrompt = action.userPromptTemplate;
+  if (userPrompt.includes("{{selection}}")) {
+    userPrompt = userPrompt.replace("{{selection}}", selection);
+  } else {
+    userPrompt = `${userPrompt}
+
+${selection}`;
+  }
+  try {
+    const result = await generateCompletion({
+      providerId: action.providerId,
+      modelId: action.modelId,
+      systemPrompt: action.systemPrompt,
+      userPrompt
+    });
+    const durationMs = Date.now() - startTime;
+    await prisma.aIActionLog.create({
+      data: {
+        actionId,
+        provider: action.providerId,
+        model: action.modelId,
+        tokensIn: result.tokensIn,
+        tokensOut: result.tokensOut,
+        durationMs,
+        status: "success"
+      }
+    });
+    return { success: true, output: result.content };
+  } catch (error) {
+    const durationMs = Date.now() - startTime;
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    await prisma.aIActionLog.create({
+      data: {
+        actionId,
+        provider: action.providerId,
+        model: action.modelId,
+        durationMs,
+        status: "failure",
+        error: errorMessage
+      }
+    });
+    return { success: false, error: errorMessage };
+  }
+}
+async function getActionLogs(actionId, limit = 50) {
+  const prisma = DatabaseClient.getInstance().getClient();
+  const logs = await prisma.aIActionLog.findMany({
+    where: { actionId },
+    orderBy: { timestamp: "desc" },
+    take: limit
+  });
+  return logs.map((log) => ({
+    ...log,
+    tokensIn: log.tokensIn || void 0,
+    tokensOut: log.tokensOut || void 0,
+    error: log.error || void 0,
+    status: log.status
+  }));
+}
+function registerAIActionsHandlers() {
+  ipcMain.handle(CHANNELS.AI_ACTIONS.LIST, async () => {
+    return listActions();
+  });
+  ipcMain.handle(CHANNELS.AI_ACTIONS.CREATE, async (_event, data) => {
+    return createAction(data);
+  });
+  ipcMain.handle(CHANNELS.AI_ACTIONS.UPDATE, async (_event, id, data) => {
+    return updateAction(id, data);
+  });
+  ipcMain.handle(CHANNELS.AI_ACTIONS.DELETE, async (_event, id) => {
+    return deleteAction(id);
+  });
+  ipcMain.handle(CHANNELS.AI_ACTIONS.EXECUTE, async (_event, actionId, selection) => {
+    return executeAction(actionId, selection);
+  });
+  ipcMain.handle(CHANNELS.AI_ACTIONS.GET_LOGS, async (_event, actionId, limit) => {
+    return getActionLogs(actionId, limit);
   });
 }
 function registerCommandsHandlers() {
@@ -2314,6 +2516,7 @@ function registerAllHandlers() {
   registerCollectionsApi();
   registerNotesApi();
   registerAIProvidersHandlers();
+  registerAIActionsHandlers();
   registerCommandsHandlers();
   console.log("API handlers registered successfully");
 }

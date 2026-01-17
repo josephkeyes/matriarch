@@ -205,6 +205,39 @@ export class DatabaseClient {
                 )
             `)
 
+            // AI Actions tables
+            await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS ai_actions (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    provider_id TEXT NOT NULL,
+                    model_id TEXT NOT NULL,
+                    system_prompt TEXT NOT NULL,
+                    user_prompt_template TEXT NOT NULL,
+                    output_behavior TEXT NOT NULL DEFAULT 'replace',
+                    enabled INTEGER NOT NULL DEFAULT 1,
+                    created_at DATETIME NOT NULL DEFAULT (datetime('now')),
+                    updated_at DATETIME NOT NULL DEFAULT (datetime('now'))
+                )
+            `)
+
+            await this.prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS ai_action_logs (
+                    id TEXT PRIMARY KEY,
+                    action_id TEXT NOT NULL,
+                    timestamp DATETIME NOT NULL DEFAULT (datetime('now')),
+                    provider TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    tokens_in INTEGER,
+                    tokens_out INTEGER,
+                    duration_ms INTEGER NOT NULL,
+                    status TEXT NOT NULL,
+                    error TEXT,
+                    FOREIGN KEY (action_id) REFERENCES ai_actions(id) ON DELETE CASCADE
+                )
+            `)
+
             const timestamp = BigInt(Date.now())
             await this.prisma.startupEvent.create({
                 data: {

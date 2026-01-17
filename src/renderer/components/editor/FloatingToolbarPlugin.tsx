@@ -4,14 +4,19 @@ import {
     $getSelection,
     $isRangeSelection,
     $createTextNode,
+    $getNodeByKey,
+    $isTextNode,
+    $createRangeSelection,
+    $setSelection,
     FORMAT_TEXT_COMMAND,
     TextFormatType,
     RangeSelection,
 } from 'lexical';
 import { $setBlocksType } from '@lexical/selection';
 import { $createHeadingNode, $isHeadingNode, HeadingTagType } from '@lexical/rich-text';
-import { $createParagraphNode } from 'lexical';
+import { $createParagraphNode, $isParagraphNode } from 'lexical';
 import { FloatingToolbar, ToolbarAction, SubmenuItem } from './FloatingToolbar';
+import { $createLoadingIndicatorNode, $isLoadingIndicatorNode } from './nodes/LoadingIndicatorNode';
 
 const SHOW_DELAY_MS = 200;
 const TOOLBAR_OFFSET_Y = 10;
@@ -238,36 +243,157 @@ export function FloatingToolbarPlugin() {
     ];
 
     // Define AI actions (placeholders for now)
-    const aiActions: ToolbarAction[] = [
+    const [availableActions, setAvailableActions] = useState<any[]>([]);
+    const [executingActionId, setExecutingActionId] = useState<string | null>(null);
+
+    // Fetch actions on mount
+    useEffect(() => {
+        const loadActions = async () => {
+            try {
+                if (window.matriarch?.aiActions) {
+                    const actions = await window.matriarch.aiActions.list();
+                    setAvailableActions(actions.filter(a => a.enabled));
+                }
+            } catch (error) {
+                console.error("Failed to load AI actions", error);
+            }
+        };
+        loadActions();
+    }, []);
+
+    const handleExecuteAIAction = useCallback(async (action: any) => {
+        if (executingActionId) return;
+        setExecutingActionId(action.id);
+        setIsVisible(false);
+
+        let loadingNodeKey: string | null = null;
+        let textContent = '';
+
+        try {
+            editor.getEditorState().read(() => {
+                const selection = $getSelection();
+                if (selection) textContent = selection.getTextContent();
+            });
+
+            console.log(`Executing AI action ${action.id} on text length ${textContent.length}`);
+
+            editor.update(() => {
+                const selection = $getSelection();
+                if ($isRangeSelection(selection)) {
+                    // Insert at end of selection without changing selection content
+                    // 1. Capture original selection points to restore later
+                    const anchorKey = selection.anchor.key;
+                    const anchorOffset = selection.anchor.offset;
+                    const anchorType = selection.anchor.type;
+                    const focusKey = selection.focus.key;
+                    const focusOffset = selection.focus.offset;
+                    const focusType = selection.focus.type;
+                    const isBackward = selection.isBackward();
+
+                    // 2. Collapse to end
+                    // If backward, anchor is the end (visually right). If forward, focus is end.
+                    // Wait, standard: if backward (focus < anchor), start is focus, end is anchor.
+                    // if forward (anchor <= focus), start is anchor, end is focus.
+                    const endPoint = isBackward ? selection.anchor : selection.focus;
+
+                    // Manually move both points to end to collapse
+                    selection.anchor.set(endPoint.key, endPoint.offset, endPoint.type);
+                    selection.focus.set(endPoint.key, endPoint.offset, endPoint.type);
+
+                    // 3. Insert Loading Node (collapsed at end)
+                    const loadingNode = $createLoadingIndicatorNode();
+                    selection.insertNodes([loadingNode]);
+
+                    // 4. Restore Selection (Robust Method)
+                    try {
+                        // We need to restore the selection to the original anchor/focus points.
+                        // Since we inserted a node *after* (collapsed at end), the original nodes 
+                        // should logically still exist, though offsets might shift if we inserted *inside* a text node.
+                        // But we captured keys/offsets *before* any modification.
+
+                        // Create a new range selection
+                        const newSelection = $createRangeSelection();
+                        newSelection.anchor.set(anchorKey, anchorOffset, anchorType);
+                        newSelection.focus.set(focusKey, focusOffset, focusType);
+
+                        // Apply it
+                        $setSelection(newSelection);
+                    } catch (err) {
+                        console.warn("Failed to restore selection after spinner insert", err);
+                    }
+
+                    loadingNodeKey = loadingNode.getKey();
+                }
+            });
+
+            const result = await window.matriarch.aiActions.execute(action.id, textContent);
+
+            editor.update(() => {
+                if (loadingNodeKey) {
+                    const node = $getNodeByKey(loadingNodeKey);
+                    if (node) node.remove();
+                }
+
+                if (result.success && result.output) {
+                    const selection = $getSelection();
+                    if ($isRangeSelection(selection)) {
+                        if (action.outputBehavior === 'replace') {
+                            selection.insertText(result.output);
+                        } else if (action.outputBehavior === 'append') {
+                            // Collapse to end manually
+                            const isBackward = selection.isBackward();
+                            const endPoint = isBackward ? selection.anchor : selection.focus;
+                            selection.anchor.set(endPoint.key, endPoint.offset, endPoint.type);
+                            selection.focus.set(endPoint.key, endPoint.offset, endPoint.type);
+
+                            selection.insertText(result.output);
+                        } else if (action.outputBehavior === 'insert_below') {
+                            const anchorNode = selection.anchor.getNode();
+                            const topLevelBlock = anchorNode.getTopLevelElement();
+
+                            if (topLevelBlock) {
+                                const newP = $createParagraphNode();
+                                newP.append($createTextNode(result.output));
+                                topLevelBlock.insertAfter(newP);
+                                newP.select();
+                            }
+                        }
+                    }
+                } else {
+                    console.error('AI Action failed:', result.error);
+                }
+                setExecutingActionId(null);
+            });
+
+        } catch (e) {
+            console.error(e);
+            setExecutingActionId(null);
+            editor.update(() => {
+                if (loadingNodeKey) {
+                    const node = $getNodeByKey(loadingNodeKey);
+                    if (node) node.remove();
+                }
+            });
+        }
+    }, [editor, executingActionId]);
+
+    // Define AI actions
+    const aiActions: ToolbarAction[] = availableActions.length > 0 ? [
         {
-            id: 'summarize',
-            label: 'Summarize',
-            icon: 'auto_awesome',
-            onClick: () => console.log('Summarize clicked'),
-            disabled: true,
-        },
-        {
-            id: 'categorize',
-            label: 'Categorize',
-            icon: 'label',
-            onClick: () => console.log('Categorize clicked'),
-            disabled: true,
-        },
-        {
-            id: 'expand',
-            label: 'Expand',
-            icon: 'add_circle',
-            onClick: () => console.log('Expand clicked'),
-            disabled: true,
-        },
-        {
-            id: 'proof',
-            label: 'Proof',
-            icon: 'spellcheck',
-            onClick: () => console.log('Proof clicked'),
-            disabled: true,
-        },
-    ];
+            id: 'ai_actions_menu',
+            label: executingActionId ? 'Running...' : 'AI Actions',
+            icon: executingActionId ? 'hourglass_empty' : 'auto_awesome',
+            onClick: () => { },
+            disabled: !!executingActionId,
+            hasSubmenu: true,
+            submenuItems: availableActions.map(action => ({
+                id: action.id,
+                label: action.name,
+                onClick: () => handleExecuteAIAction(action),
+                isActive: false
+            }))
+        }
+    ] : [];
 
     if (!isVisible) return null;
 

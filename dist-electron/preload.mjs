@@ -36,6 +36,14 @@ const CHANNELS = {
     CHECK_AVAILABILITY: "ai-providers:check-availability",
     GET_MODELS: "ai-providers:get-models"
   },
+  AI_ACTIONS: {
+    LIST: "ai-actions:list",
+    CREATE: "ai-actions:create",
+    UPDATE: "ai-actions:update",
+    DELETE: "ai-actions:delete",
+    EXECUTE: "ai-actions:execute",
+    GET_LOGS: "ai-actions:get-logs"
+  },
   COMMANDS: {
     LIST: "commands:list",
     GET: "commands:get",
@@ -85,6 +93,14 @@ const matriarch = {
     updateConfig: (providerId, config) => electron.ipcRenderer.invoke(CHANNELS.AI_PROVIDERS.UPDATE_CONFIG, providerId, config),
     checkAvailability: (providerId) => electron.ipcRenderer.invoke(CHANNELS.AI_PROVIDERS.CHECK_AVAILABILITY, providerId),
     getModels: (providerId) => electron.ipcRenderer.invoke(CHANNELS.AI_PROVIDERS.GET_MODELS, providerId)
+  },
+  aiActions: {
+    list: () => electron.ipcRenderer.invoke(CHANNELS.AI_ACTIONS.LIST),
+    create: (data) => electron.ipcRenderer.invoke(CHANNELS.AI_ACTIONS.CREATE, data),
+    update: (id, data) => electron.ipcRenderer.invoke(CHANNELS.AI_ACTIONS.UPDATE, id, data),
+    delete: (id) => electron.ipcRenderer.invoke(CHANNELS.AI_ACTIONS.DELETE, id),
+    execute: (actionId, selection) => electron.ipcRenderer.invoke(CHANNELS.AI_ACTIONS.EXECUTE, actionId, selection),
+    getLogs: (actionId, limit) => electron.ipcRenderer.invoke(CHANNELS.AI_ACTIONS.GET_LOGS, actionId, limit)
   },
   commands: {
     list: (filter) => electron.ipcRenderer.invoke(CHANNELS.COMMANDS.LIST, filter),

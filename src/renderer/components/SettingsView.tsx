@@ -5,11 +5,13 @@ import { SettingsToggle } from './ui/SettingsToggle'
 import { ProviderCard } from './settings/ProviderCard'
 import { OllamaConfigPanel } from './settings/OllamaConfigPanel'
 import type { AIProviderInfo } from '../../shared/api/contracts'
+import { AIActionConfig } from './settings/AIActionConfig'
 
 // Settings navigation items
 const settingsNavItems = [
     { id: 'general', label: 'General Preferences', icon: 'display_settings' },
     { id: 'ai', label: 'AI Configuration', icon: 'psychology' },
+    { id: 'actions', label: 'Actions', icon: 'bolt' },
     { id: 'security', label: 'Security & Privacy', icon: 'security' },
     { id: 'api', label: 'API Integrations', icon: 'hub' },
     { id: 'billing', label: 'Billing & Usage', icon: 'payments' },
@@ -29,7 +31,7 @@ interface SettingsViewProps {
 
 export function SettingsView({ onClose }: SettingsViewProps) {
     // Navigation state
-    const [activeSection, setActiveSection] = useState('ai')
+    const [activeSection, setActiveSection] = useState('actions')
 
     // AI Providers state
     const [providers, setProviders] = useState<AIProviderInfo[]>([])
@@ -124,22 +126,6 @@ export function SettingsView({ onClose }: SettingsViewProps) {
                         </button>
                     ))}
                 </div>
-
-                {/* Usage Footer */}
-                {/* <div className="p-4 border-t border-slate-100 dark:border-border-dark/50">
-                    <div className="bg-slate-50 dark:bg-background-dark p-3 rounded-lg">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">
-                            Power User Tier
-                        </p>
-                        <div className="flex items-center justify-between text-xs font-semibold">
-                            <span className="text-slate-700 dark:text-text-main-dark">94% API Usage</span>
-                            <span className="text-primary cursor-pointer hover:underline">Upgrade</span>
-                        </div>
-                        <div className="w-full bg-slate-200 dark:bg-slate-700 h-1 rounded-full mt-2">
-                            <div className="bg-primary h-1 rounded-full w-[94%]" />
-                        </div>
-                    </div>
-                </div> */}
             </aside>
 
             {/* Main Content */}
@@ -164,234 +150,145 @@ export function SettingsView({ onClose }: SettingsViewProps) {
                 {/* Scrollable Content */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
                     <div className="max-w-4xl mx-auto space-y-10">
+
+                        {/* AI Actions Section */}
+                        {activeSection === 'actions' && (
+                            <section>
+                                <AIActionConfig />
+                            </section>
+                        )}
+
                         {/* AI Providers Section */}
-                        <section>
-                            <div className="flex items-center space-x-2 mb-6">
-                                <span className="material-icons-round text-primary">hub</span>
-                                <h3 className="text-lg font-bold text-slate-900 dark:text-text-main-dark">
-                                    AI Providers
-                                </h3>
-                            </div>
-                            <p className="text-sm text-slate-500 dark:text-text-secondary-dark mb-6">
-                                Configure local and cloud AI providers. Providers are disabled by default.
-                            </p>
+                        {activeSection === 'ai' && (
+                            <>
+                                <section>
+                                    <div className="flex items-center space-x-2 mb-6">
+                                        <span className="material-icons-round text-primary">hub</span>
+                                        <h3 className="text-lg font-bold text-slate-900 dark:text-text-main-dark">
+                                            AI Providers
+                                        </h3>
+                                    </div>
+                                    <p className="text-sm text-slate-500 dark:text-text-secondary-dark mb-6">
+                                        Configure local and cloud AI providers. Providers are disabled by default.
+                                    </p>
 
-                            {loadingProviders ? (
-                                <div className="flex items-center justify-center py-8">
-                                    <span className="animate-spin material-icons-round text-primary">refresh</span>
-                                    <span className="ml-2 text-sm text-slate-500">Loading providers...</span>
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    {providers.map((provider) => (
-                                        <ProviderCard
-                                            key={provider.id}
-                                            provider={provider}
-                                            onToggle={handleProviderToggle}
-                                            onConfigChange={handleProviderConfigChange}
-                                            onTestConnection={handleTestConnection}
-                                        >
-                                            {provider.id === 'ollama' && provider.config && (
-                                                <OllamaConfigPanel
-                                                    config={provider.config as { baseUrl: string; defaultModel: string }}
-                                                    onSave={(config) => handleProviderConfigChange(provider.id, config as unknown as Record<string, unknown>)}
-                                                    onTestConnection={() => handleTestConnection(provider.id)}
-                                                />
-                                            )}
-                                        </ProviderCard>
-                                    ))}
-                                </div>
-                            )}
-                        </section>
+                                    {loadingProviders ? (
+                                        <div className="flex items-center justify-center py-8">
+                                            <span className="animate-spin material-icons-round text-primary">refresh</span>
+                                            <span className="ml-2 text-sm text-slate-500">Loading providers...</span>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            {providers.map((provider) => (
+                                                <ProviderCard
+                                                    key={provider.id}
+                                                    provider={provider}
+                                                    onToggle={handleProviderToggle}
+                                                    onConfigChange={handleProviderConfigChange}
+                                                    onTestConnection={handleTestConnection}
+                                                >
+                                                    {provider.id === 'ollama' && provider.config && (
+                                                        <OllamaConfigPanel
+                                                            config={provider.config as { baseUrl: string; defaultModel: string }}
+                                                            onSave={(config) => handleProviderConfigChange(provider.id, config as unknown as Record<string, unknown>)}
+                                                            onTestConnection={() => handleTestConnection(provider.id)}
+                                                        />
+                                                    )}
+                                                </ProviderCard>
+                                            ))}
+                                        </div>
+                                    )}
+                                </section>
 
-                        {/* AI Task Automation Section */}
-                        <section>
-                            <div className="flex items-center space-x-2 mb-6">
-                                <span className="material-icons-round text-primary">auto_fix_high</span>
-                                <h3 className="text-lg font-bold text-slate-900 dark:text-text-main-dark">
-                                    AI Task Automation
-                                </h3>
-                            </div>
-                            <div className="space-y-4">
-                                <SettingsToggle
-                                    label="Autonomous Note Summary"
-                                    description="Generate insights immediately after note creation."
-                                    checked={autoNoteSummary}
-                                    onChange={setAutoNoteSummary}
-                                />
-                                <SettingsToggle
-                                    label="Background Relationship Mapping"
-                                    description="Analyze cross-collection dependencies in real-time."
-                                    checked={backgroundMapping}
-                                    onChange={setBackgroundMapping}
-                                />
-                            </div>
-                        </section>
-
-                        {/* AI Model Selection Section */}
-                        <section>
-                            <div className="flex items-center space-x-2 mb-6">
-                                <span className="material-icons-round text-accent-blue">model_training</span>
-                                <h3 className="text-lg font-bold text-slate-900 dark:text-text-main-dark">
-                                    AI Model Selection
-                                </h3>
-                            </div>
-                            <div className="space-y-6">
-                                {/* Model Dropdown */}
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
-                                        Primary reasoning engine
-                                    </label>
-                                    <select
-                                        value={selectedModel}
-                                        onChange={(e) => setSelectedModel(e.target.value)}
-                                        className="w-full bg-slate-50 dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-lg text-sm px-4 py-2.5 text-slate-900 dark:text-text-main-dark focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-colors"
-                                    >
-                                        {aiModelOptions.map((option) => (
-                                            <option key={option.value} value={option.value}>
-                                                {option.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                {/* Token Limit & Temperature */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
-                                            Max Token Limit
-                                        </label>
-                                        <input
-                                            type="number"
-                                            value={maxTokens}
-                                            onChange={(e) => setMaxTokens(e.target.value)}
-                                            className="w-full bg-slate-50 dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-lg text-sm px-4 py-2.5 text-slate-900 dark:text-text-main-dark focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-colors"
+                                {/* AI Task Automation Section */}
+                                <section className="mt-10">
+                                    <div className="flex items-center space-x-2 mb-6">
+                                        <span className="material-icons-round text-primary">auto_fix_high</span>
+                                        <h3 className="text-lg font-bold text-slate-900 dark:text-text-main-dark">
+                                            AI Task Automation
+                                        </h3>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <SettingsToggle
+                                            label="Autonomous Note Summary"
+                                            description="Generate insights immediately after note creation."
+                                            checked={autoNoteSummary}
+                                            onChange={setAutoNoteSummary}
+                                        />
+                                        <SettingsToggle
+                                            label="Background Relationship Mapping"
+                                            description="Analyze cross-collection dependencies in real-time."
+                                            checked={backgroundMapping}
+                                            onChange={setBackgroundMapping}
                                         />
                                     </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
-                                            Temperature
-                                        </label>
-                                        <input
-                                            type="range"
-                                            min="0"
-                                            max="100"
-                                            value={temperature}
-                                            onChange={(e) => setTemperature(Number(e.target.value))}
-                                            className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-primary"
-                                        />
-                                        <div className="flex justify-between text-[10px] text-slate-400 mt-1">
-                                            <span>Precise</span>
-                                            <span>Creative</span>
+                                </section>
+
+                                {/* AI Model Selection Section */}
+                                <section className="mt-10">
+                                    <div className="flex items-center space-x-2 mb-6">
+                                        <span className="material-icons-round text-accent-blue">model_training</span>
+                                        <h3 className="text-lg font-bold text-slate-900 dark:text-text-main-dark">
+                                            AI Model Selection
+                                        </h3>
+                                    </div>
+                                    <div className="space-y-6">
+                                        {/* Model Dropdown */}
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
+                                                Primary reasoning engine
+                                            </label>
+                                            <select
+                                                value={selectedModel}
+                                                onChange={(e) => setSelectedModel(e.target.value)}
+                                                className="w-full bg-slate-50 dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-lg text-sm px-4 py-2.5 text-slate-900 dark:text-text-main-dark focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-colors"
+                                            >
+                                                {aiModelOptions.map((option) => (
+                                                    <option key={option.value} value={option.value}>
+                                                        {option.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Token Limit & Temperature */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
+                                                    Max Token Limit
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    value={maxTokens}
+                                                    onChange={(e) => setMaxTokens(e.target.value)}
+                                                    className="w-full bg-slate-50 dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-lg text-sm px-4 py-2.5 text-slate-900 dark:text-text-main-dark focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-colors"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
+                                                    Temperature
+                                                </label>
+                                                <input
+                                                    type="range"
+                                                    min="0"
+                                                    max="100"
+                                                    value={temperature}
+                                                    onChange={(e) => setTemperature(Number(e.target.value))}
+                                                    className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-primary"
+                                                />
+                                                <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                                                    <span>Precise</span>
+                                                    <span>Creative</span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                        </section>
-
-                        {/* AI Routing Setup Section */}
-                        <section>
-                            <div className="flex items-center space-x-2 mb-6">
-                                <span className="material-icons-round text-accent-purple">alt_route</span>
-                                <h3 className="text-lg font-bold text-slate-900 dark:text-text-main-dark">
-                                    AI Routing Setup
-                                </h3>
-                            </div>
-
-                            {/* Routing Rule Card */}
-                            <div className="p-5 border-2 border-dashed border-slate-200 dark:border-border-dark rounded-xl">
-                                <div className="flex items-center justify-between mb-4">
-                                    <span className="text-xs font-medium bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-700 dark:text-text-secondary-dark">
-                                        Rule #1: High Complexity Task
-                                    </span>
-                                    <button className="text-slate-400 hover:text-slate-600 dark:hover:text-text-main-dark transition-colors">
-                                        <span className="material-icons-round text-sm">more_vert</span>
-                                    </button>
-                                </div>
-                                <div className="flex items-center space-x-3 text-sm">
-                                    <span className="text-slate-500 dark:text-text-secondary-dark">
-                                        If input length &gt; 10k then route to
-                                    </span>
-                                    <span className="font-mono text-primary bg-primary/5 dark:bg-primary/10 px-2 py-0.5 rounded">
-                                        Claude-3-Opus
-                                    </span>
-                                </div>
-                            </div>
-
-                            {/* Add Rule Button */}
-                            <button className="mt-4 w-full py-2 border border-slate-200 dark:border-border-dark rounded-lg text-xs font-semibold text-slate-500 dark:text-text-secondary-dark hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                                + Add Routing Rule
-                            </button>
-                        </section>
+                                </section>
+                            </>
+                        )}
                     </div>
                 </div>
             </section>
-
-            {/* <aside className="w-72 flex-shrink-0 border-l border-slate-200 dark:border-border-dark flex flex-col bg-white dark:bg-surface-dark overflow-hidden">
-                <div className="p-6 border-b border-slate-100 dark:border-border-dark/50 bg-slate-50 dark:bg-background-dark">
-                    <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">
-                        System Status
-                    </h2>
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs text-slate-600 dark:text-text-secondary-dark">API Gateway</span>
-                            <span className="flex items-center text-[10px] font-bold text-green-500">
-                                <span className="w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse" />
-                                OPERATIONAL
-                            </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs text-slate-600 dark:text-text-secondary-dark">Routing Latency</span>
-                            <span className="text-[10px] font-mono text-slate-900 dark:text-text-main-dark">124ms</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs text-slate-600 dark:text-text-secondary-dark">Tokens Remaining</span>
-                            <span className="text-[10px] font-mono text-slate-900 dark:text-text-main-dark">1.2M / 5M</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-                    <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">
-                        Recent Config Changes
-                    </h2>
-                    <div className="space-y-6">
-                        <div className="relative pl-4 border-l border-slate-100 dark:border-border-dark">
-                            <div className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-primary" />
-                            <p className="text-[11px] font-semibold text-slate-900 dark:text-text-main-dark">
-                                Primary model updated
-                            </p>
-                            <p className="text-[10px] text-slate-500 dark:text-text-secondary-dark mt-0.5">
-                                GPT-4o → Claude-3.5
-                            </p>
-                            <p className="text-[9px] text-slate-400 mt-1">2 minutes ago</p>
-                        </div>
-
-                        <div className="relative pl-4 border-l border-slate-100 dark:border-border-dark">
-                            <div className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-700" />
-                            <p className="text-[11px] font-semibold text-slate-900 dark:text-text-main-dark">
-                                API Key Rotated
-                            </p>
-                            <p className="text-[10px] text-slate-500 dark:text-text-secondary-dark mt-0.5">
-                                Admin-Primary-Key (System)
-                            </p>
-                            <p className="text-[9px] text-slate-400 mt-1">Yesterday, 14:20</p>
-                        </div>
-
-                        <div className="relative pl-4 border-l border-slate-100 dark:border-border-dark">
-                            <div className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-700" />
-                            <p className="text-[11px] font-semibold text-slate-900 dark:text-text-main-dark">
-                                Safety Filter Disabled
-                            </p>
-                            <p className="text-[10px] text-slate-500 dark:text-text-secondary-dark mt-0.5">
-                                Strict → Relaxed (Creative Scope)
-                            </p>
-                            <p className="text-[9px] text-slate-400 mt-1">Sep 12, 09:15</p>
-                        </div>
-                    </div>
-                </div>
-            </aside>
-             */}
         </div>
     )
 }

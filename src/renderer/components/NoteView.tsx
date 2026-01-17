@@ -17,6 +17,7 @@ import { CodeNode } from '@lexical/code';
 import { ListNode, ListItemNode } from '@lexical/list';
 import { LinkNode } from '@lexical/link';
 import { FloatingToolbarPlugin } from './editor/FloatingToolbarPlugin';
+import { LoadingIndicatorNode } from './editor/nodes/LoadingIndicatorNode';
 
 // Theme configuration
 const theme = {
@@ -152,7 +153,9 @@ export function NoteView({ noteId, onNoteUpdate }: NoteViewProps) {
             CodeNode,
             ListNode,
             ListItemNode,
-            LinkNode
+            ListItemNode,
+            LinkNode,
+            LoadingIndicatorNode
         ],
         editable: true,
     };

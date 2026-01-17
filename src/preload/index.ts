@@ -54,6 +54,14 @@ const matriarch: MatriarchApi = {
             ipcRenderer.invoke(CHANNELS.AI_PROVIDERS.CHECK_AVAILABILITY, providerId),
         getModels: (providerId: string) => ipcRenderer.invoke(CHANNELS.AI_PROVIDERS.GET_MODELS, providerId),
     },
+    aiActions: {
+        list: () => ipcRenderer.invoke(CHANNELS.AI_ACTIONS.LIST),
+        create: (data) => ipcRenderer.invoke(CHANNELS.AI_ACTIONS.CREATE, data),
+        update: (id, data) => ipcRenderer.invoke(CHANNELS.AI_ACTIONS.UPDATE, id, data),
+        delete: (id) => ipcRenderer.invoke(CHANNELS.AI_ACTIONS.DELETE, id),
+        execute: (actionId, selection) => ipcRenderer.invoke(CHANNELS.AI_ACTIONS.EXECUTE, actionId, selection),
+        getLogs: (actionId, limit) => ipcRenderer.invoke(CHANNELS.AI_ACTIONS.GET_LOGS, actionId, limit),
+    },
     commands: {
         list: (filter) => ipcRenderer.invoke(CHANNELS.COMMANDS.LIST, filter),
         get: (id) => ipcRenderer.invoke(CHANNELS.COMMANDS.GET, id),

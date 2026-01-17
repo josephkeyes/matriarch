@@ -179,6 +179,44 @@ export interface AIProvidersApi {
 }
 
 // ============================================================================
+// AI Actions API
+// ============================================================================
+
+export interface AIAction {
+    id: string
+    name: string
+    description?: string
+    providerId: string
+    modelId: string
+    systemPrompt: string
+    userPromptTemplate: string // e.g. "Summarize this: {{selection}}"
+    outputBehavior: 'replace' | 'append' | 'insert_below'
+    enabled: boolean
+}
+
+export interface AIActionLog {
+    id: string
+    actionId: string
+    timestamp: Date
+    provider: string
+    model: string
+    tokensIn?: number
+    tokensOut?: number
+    durationMs: number
+    status: 'success' | 'failure'
+    error?: string
+}
+
+export interface AIActionsApi {
+    list(): Promise<AIAction[]>
+    create(data: Omit<AIAction, 'id' | 'enabled'>): Promise<AIAction>
+    update(id: string, data: Partial<Omit<AIAction, 'id'>>): Promise<AIAction>
+    delete(id: string): Promise<void>
+    execute(actionId: string, selection: string): Promise<{ success: boolean; output?: string; error?: string }>
+    getLogs(actionId: string, limit?: number): Promise<AIActionLog[]>
+}
+
+// ============================================================================
 // Combined API Facade
 // ============================================================================
 
@@ -193,6 +231,7 @@ export interface MatriarchApi {
     collections: CollectionsApi
     notes: NotesApi
     aiProviders: AIProvidersApi
+    aiActions: AIActionsApi
     commands: CommandsApi
 }
 

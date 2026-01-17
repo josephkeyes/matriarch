@@ -223,3 +223,42 @@ model CommandHotkey {
   @@unique([accelerator]) // Prevent duplicate hotkey bindings
   @@map("command_hotkeys")
 }
+
+// ============================================================================
+// AI Actions
+// ============================================================================
+
+model AIAction {
+  id                 String   @id @default(uuid())
+  name               String
+  description        String?
+  providerId         String   @map("provider_id")
+  modelId            String   @map("model_id")
+  systemPrompt       String   @map("system_prompt")
+  userPromptTemplate String   @map("user_prompt_template")
+  outputBehavior     String   @default("replace") @map("output_behavior") // 'replace', 'append', 'insert_below'
+  enabled            Boolean  @default(true)
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  
+  logs               AIActionLog[]
+
+  @@map("ai_actions")
+}
+
+model AIActionLog {
+  id         String   @id @default(uuid())
+  actionId   String   @map("action_id")
+  action     AIAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  timestamp  DateTime @default(now())
+  provider   String
+  model      String
+  tokensIn   Int?     @map("tokens_in")
+  tokensOut  Int?     @map("tokens_out")
+  durationMs Int      @map("duration_ms")
+  status     String   // 'success', 'failure'
+  error      String?
+
+  @@map("ai_action_logs")
+}
+

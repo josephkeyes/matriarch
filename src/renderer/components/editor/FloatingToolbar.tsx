@@ -118,24 +118,47 @@ export function FloatingToolbar({
             )}
 
             {/* AI Actions */}
+            {/* AI Actions */}
             {aiActions.map((action) => (
-                <button
-                    key={action.id}
-                    onClick={action.onClick}
-                    disabled={action.disabled}
-                    title={action.label}
-                    className={cn(
-                        "h-8 px-2.5 flex items-center gap-1.5 rounded-md text-xs font-medium transition-colors",
-                        action.disabled
-                            ? "opacity-40 cursor-not-allowed text-slate-400 dark:text-text-secondary-dark"
-                            : "text-slate-600 dark:text-text-secondary-dark hover:bg-slate-100 dark:hover:bg-background-dark"
+                <div key={action.id} className="relative">
+                    <button
+                        onClick={() => handleActionClick(action)}
+                        disabled={action.disabled}
+                        title={action.label}
+                        className={cn(
+                            "h-8 px-2.5 flex items-center gap-1.5 rounded-md text-xs font-medium transition-colors",
+                            action.isActive || openSubmenuId === action.id
+                                ? "bg-primary/10 text-primary"
+                                : "text-slate-600 dark:text-text-secondary-dark hover:bg-slate-100 dark:hover:bg-background-dark",
+                            action.disabled && "opacity-40 cursor-not-allowed"
+                        )}
+                    >
+                        {action.icon && (
+                            <span className="material-icons-round text-[16px]">{action.icon}</span>
+                        )}
+                        <span>{action.label}</span>
+                    </button>
+
+                    {/* Submenu Flyout */}
+                    {action.hasSubmenu && action.submenuItems && openSubmenuId === action.id && (
+                        <div className="absolute top-full right-0 mt-1 bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-lg shadow-xl py-1 min-w-[120px] animate-toolbar-fade-in z-[10000]">
+                            {action.submenuItems.map((item) => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => handleSubmenuItemClick(item)}
+                                    className={cn(
+                                        "w-full px-3 py-1.5 text-left text-sm font-medium transition-colors hover:bg-slate-100 dark:hover:bg-background-dark",
+                                        item.isActive
+                                            ? "text-primary"
+                                            : "text-slate-600 dark:text-text-secondary-dark"
+                                    )}
+                                >
+                                    {item.label}
+                                </button>
+                            ))}
+                        </div>
                     )}
-                >
-                    {action.icon && (
-                        <span className="material-icons-round text-[16px]">{action.icon}</span>
-                    )}
-                    <span>{action.label}</span>
-                </button>
+                </div>
             ))}
         </div>
     );

@@ -215,3 +215,74 @@ export async function getOllamaModels(config?: OllamaConfig | null): Promise<str
     const result = await checkOllamaAvailability(config ?? null)
     return result.models ?? []
 }
+
+// ============================================================================
+// Completion Generation
+// ============================================================================
+
+export interface CompletionRequest {
+    providerId: string
+    modelId: string
+    systemPrompt: string
+    userPrompt: string
+}
+
+export interface CompletionResponse {
+    content: string
+    tokensIn?: number
+    tokensOut?: number
+}
+
+/**
+ * Generate a completion using the specified provider.
+ */
+export async function generateCompletion(request: CompletionRequest): Promise<CompletionResponse> {
+    const { providerId, modelId, systemPrompt, userPrompt } = request
+
+    // Get config
+    const config = await getProviderConfig(providerId)
+
+    switch (providerId) {
+        case AIProviderType.OLLAMA:
+            return generateOllamaCompletion(config as OllamaConfig | null, modelId, systemPrompt, userPrompt)
+        default:
+            throw new Error(`Provider ${providerId} does not support completion generation`)
+    }
+}
+
+async function generateOllamaCompletion(
+    config: OllamaConfig | null,
+    model: string,
+    systemPrompt: string,
+    userPrompt: string
+): Promise<CompletionResponse> {
+    const baseUrl = config?.baseUrl ?? OLLAMA_DEFAULTS.baseUrl
+
+    const response = await fetch(`${baseUrl}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            model,
+            system: systemPrompt,
+            prompt: userPrompt,
+            stream: false,
+        }),
+    })
+
+    if (!response.ok) {
+        throw new Error(`Ollama generation failed: ${response.statusText}`)
+    }
+
+    const data = await response.json() as {
+        response: string;
+        prompt_eval_count?: number;
+        eval_count?: number
+    }
+
+    return {
+        content: data.response,
+        tokensIn: data.prompt_eval_count,
+        tokensOut: data.eval_count,
+    }
+}
+

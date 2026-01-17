@@ -39,6 +39,14 @@ export const CHANNELS = {
         CHECK_AVAILABILITY: 'ai-providers:check-availability',
         GET_MODELS: 'ai-providers:get-models',
     },
+    AI_ACTIONS: {
+        LIST: 'ai-actions:list',
+        CREATE: 'ai-actions:create',
+        UPDATE: 'ai-actions:update',
+        DELETE: 'ai-actions:delete',
+        EXECUTE: 'ai-actions:execute',
+        GET_LOGS: 'ai-actions:get-logs',
+    },
     COMMANDS: {
         LIST: 'commands:list',
         GET: 'commands:get',

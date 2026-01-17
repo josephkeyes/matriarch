@@ -13,6 +13,7 @@ import { registerAgentsApi } from './agentsApi'
 import { registerCollectionsApi } from './collectionsApi'
 import { registerNotesApi } from './notesApi'
 import { registerAIProvidersHandlers } from './aiProvidersApi'
+import { registerAIActionsHandlers } from './aiActionsApi'
 import { registerCommandsHandlers } from './commandsApi'
 
 /**
@@ -28,6 +29,7 @@ export function registerAllHandlers(): void {
     registerCollectionsApi()
     registerNotesApi()
     registerAIProvidersHandlers()
+    registerAIActionsHandlers()
     registerCommandsHandlers()
 
     console.log('API handlers registered successfully')

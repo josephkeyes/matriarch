@@ -118,14 +118,14 @@ export function Sidebar({
             )}
 
             {/* Search (Body) - only if NOT in header */}
-            {!isCollapsed && !searchInHeader && (
+            {/* {!isCollapsed && !searchInHeader && (
                 <div className="p-4 transition-opacity duration-200">
                     <SearchInput
                         placeholder={searchPlaceholder}
                         onChange={(e) => onSearch?.(e.target.value)}
                     />
                 </div>
-            )}
+            )} */}
 
             {/* Navigation sections */}
             <div className={cn(
